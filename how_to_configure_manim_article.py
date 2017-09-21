@@ -1,6 +1,7 @@
 #coding=utf-8
 
 from helpers import *
+import numpy as np
 
 from animation.transform import *
 from animation.simple_animations import *
@@ -16,7 +17,7 @@ class ConfigManimThumbnail(Scene):
             arg_separator = "")
         config[1].highlight(BLUE)
         config[2].highlight(YELLOW)
-        config.scale(2)
+        config.scale(3)
 
         full_name = TextMobject("(", "m", "ath", " anim", "ator)", \
             arg_separator = "")
@@ -27,8 +28,9 @@ class ConfigManimThumbnail(Scene):
         full_name.next_to(manim, DOWN)
 
         gear = SVGMobject(file_name = "gear")
+        gear.rotate(np.pi/5.)
         gear.fade(0.9)
-        gear.scale(3)
-        gear.shift(RIGHT)
+        gear.scale(4)
+        gear.move_to(manim.get_center())
 
         self.add(*[gear, config, full_name])
