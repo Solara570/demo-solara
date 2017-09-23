@@ -6,7 +6,7 @@ from mobject.tex_mobject import *
 from topics.fractals import *
 
 
-class TohruCurve(FractalCurve):
+class TohruCurve(LindenmayerCurve):
     CONFIG = {
         "axiom"        : "FX",
         "rule"         : {
@@ -32,25 +32,10 @@ class TohruCurve(FractalCurve):
     }
 
     def __init__(self, **kwargs):
-        FractalCurve.__init__(self, **kwargs)
+        LindenmayerCurve.__init__(self, **kwargs)
         self.rotate(-self.order*np.pi/4)
         self.shift(self.radius/2. * self.shift_vector)
         self.shift(UP)
-
-    def expand_command_string(self, command):
-        result = ""
-        for letter in command:
-            if letter in self.rule:
-                result += self.rule[letter]
-            else:
-                result += letter
-        return result
-
-    def get_command_string(self):
-        result = self.axiom
-        for x in range(self.order):
-            result = self.expand_command_string(result)
-        return result
 
     def get_anchor_points(self):
         step = float(self.radius) * self.start_step 
@@ -85,18 +70,20 @@ class TwinDragon(VMobject):
     def generate_points(self):
         self.add(TohruCurve(order = self.order))
         self.add(KannaCurve(order = self.order))
-        return self
 
 
 class ChannelLogo(Scene):
+    CONFIG = {
+        "max_order" : 19,
+    }
     def construct(self):
         # Generate transformation animations of the twin dragon curve
-        animlist = list()
+        anims = list()
         fractal = TwinDragon()
-        animlist.append(FadeIn(fractal, run_time = 0.5))
-        for order in range(1, 19):
+        anims.append(FadeIn(fractal, run_time = 0.25))
+        for order in range(1, self.max_order):
             new_fractal = TwinDragon(order = order)
-            animlist.append(
+            anims.append(
                 Transform(
                     fractal, new_fractal,
                     submobject_mode = "all_at_once",
@@ -110,7 +97,7 @@ class ChannelLogo(Scene):
 
         # Now sit back and watch
         self.play(
-            Succession(*animlist),
+            Succession(*anims),
             Write(text, rate_func = squish_rate_func(smooth, 0.1, 0.9)),
             run_time = 4.5,
         )
