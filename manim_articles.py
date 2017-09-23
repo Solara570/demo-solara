@@ -19,17 +19,17 @@ class ConfigManimBanner(Scene):
     def construct(self):
         question = TextMobject("如何", self.verb, "m", "anim", "?", \
             arg_separator = "")
-        question[2].highlight(BLUE)
-        question[3].highlight(YELLOW)
         question.scale(3)
 
         full_name = TextMobject("(", "m", "ath", " anim", "ator)", \
             arg_separator = "")
-        full_name[1].highlight(BLUE)
-        full_name[3].highlight(YELLOW)
         manim = VGroup(*question[2:4])
         full_name.scale_to_fit_width(manim.get_width())
         full_name.next_to(manim, DOWN)
+
+        for word in (question, full_name):
+            word.highlight_by_tex("m", BLUE)
+            word.highlight_by_tex("anim", YELLOW)
 
         words = VGroup(question, full_name)
         rect = BackgroundRectangle(words).scale_to_fit_width(SPACE_WIDTH * 2)
@@ -52,6 +52,6 @@ class RunManimBanner(ConfigManimBanner):
     CONFIG = {
         "verb"         : "使用",
         "svg_filename" : "gear",
-        "author_colors": [WHITE, PURPLE],
+        "author_colors": [PURPLE, WHITE],
         "bg_angle"     : np.pi/5,
     }
