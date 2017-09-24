@@ -91,3 +91,7 @@ class Show3DHilbertCurve(ThreeDScene):
         self.dither(2)
 
 
+class Thumbnail(ThreeDScene):
+    def construct(self):
+        self.set_camera_position(phi = np.pi/3, theta = 2*np.pi/5)
+        self.add(HilbertCurve3D(order = 3, radius = 3))
