@@ -3,12 +3,15 @@
 from helpers import *
 import numpy as np
 
+from animation.simple_animations import *
+from animation.transform import *
 from mobject.svg_mobject import *
 from mobject.tex_mobject import *
 from scene import Scene
 from camera import Camera
 
 
+# Part 1: https://www.bilibili.com/read/cv17444
 class ConfigManimBanner(Scene):
     CONFIG = {
         "verb"         : "配置",
@@ -48,6 +51,7 @@ class ConfigManimBanner(Scene):
         self.add(*[bg_object, rect, author, question, full_name])
 
 
+# Part 2: https://www.bilibili.com/read/cv19963
 class RunManimBanner(ConfigManimBanner):
     CONFIG = {
         "verb"         : "使用",
@@ -55,3 +59,17 @@ class RunManimBanner(ConfigManimBanner):
         "author_colors": [PURPLE, WHITE],
         "bg_angle"     : np.pi/5,
     }
+
+
+class Manim(Scene):
+    def construct(self):
+        text = TextMobject("manim")
+        self.play(Write(text))
+        self.play(ApplyPointwiseFunction(
+            lambda (x, y, z) : complex_to_R3(np.exp(complex(x, y))),
+            text
+        ))
+        self.dither()
+
+
+
