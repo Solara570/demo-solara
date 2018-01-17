@@ -69,7 +69,7 @@ class Manim(Scene):
             lambda (x, y, z) : complex_to_R3(np.exp(complex(x, y))),
             text
         ))
-        self.dither()
+        self.wait()
 
 
 

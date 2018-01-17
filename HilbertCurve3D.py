@@ -64,21 +64,21 @@ class Show3DHilbertCurve(ThreeDScene):
                 new_fractal = HilbertCurve3D(order = cur_order + 1)
                 self.play(Transform(fractal, new_fractal))
                 cur_order = new_fractal.order
-                self.dither(2)
-        self.dither(5)
+                self.wait(2)
+        self.wait(5)
         self.play(FadeOut(fractal))
-        self.dither(3)
+        self.wait(3)
 
         # Part 2: Show one-touch construction
         self.play(ShowCreation(HilbertCurve3D(order = self.max_order)), run_time = 60)
-        self.dither(5)
+        self.wait(5)
 
         # Part 3: Decreasing the order till it vanishes
         for k in reversed(range(1, self.max_order)):
             new_fractal = HilbertCurve3D(order = cur_order - 1)
             self.play(Transform(fractal, new_fractal))
             cur_order = new_fractal.order
-            self.dither(2)
+            self.wait(2)
         self.play(Uncreate(fractal), run_time = 1)
 
         # The end
@@ -88,7 +88,7 @@ class Show3DHilbertCurve(ThreeDScene):
         author.scale(1.5)
         author.to_corner(RIGHT+DOWN)
         self.play(FadeIn(author), run_time = 1)
-        self.dither(2)
+        self.wait(2)
 
 
 class Thumbnail(ThreeDScene):
