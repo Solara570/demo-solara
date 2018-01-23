@@ -30,14 +30,18 @@ from camera import Camera
 class Button(VMobject):
     CONFIG = {
         "color" : YELLOW,
-        "radius" : 2,
+        "inner_radius" : 2,
+        "outer_radius" : 2.5,
         "circle_stroke_width" : 30,
     }
     def generate_points(self):
-        circle = Circle(stroke_width = self.circle_stroke_width, color = self.color)
-        circle.center().scale(self.radius)
+        ring = Annulus(
+            inner_radius = self.inner_radius,
+            outer_radius = self.outer_radius,
+            fill_color = self.color
+        )
         symbol = self.generate_symbol()
-        self.add(VGroup(*[circle, symbol]))
+        self.add(VGroup(ring, symbol))
 
     def generate_symbol(self):
         raise Exception("Not Implemented")
@@ -52,7 +56,7 @@ class PauseButton(Button):
             for i in range(2)
         ])
         symbol.arrange_submobjects(RIGHT, buff = 0.5)
-        symbol.scale_to_fit_height(self.radius)
+        symbol.scale_to_fit_height(self.inner_radius)
         return symbol
 
 class PlayButton(Button):
@@ -61,7 +65,7 @@ class PlayButton(Button):
             n = 3, stroke_width = 0,
             fill_color = self.color, fill_opacity = 1,
         )
-        symbol.scale_to_fit_height(self.radius)
+        symbol.scale_to_fit_height(self.inner_radius)
         return symbol
 
 class SkipButton(Button):
@@ -74,7 +78,7 @@ class SkipButton(Button):
             for i in range(2)
         ])
         symbol.arrange_submobjects(RIGHT, buff = 0)
-        symbol.scale_to_fit_height(self.radius * 0.7)
+        symbol.scale_to_fit_height(self.inner_radius * 0.7)
         return symbol
 
 class RewindButton(Button):
@@ -87,13 +91,13 @@ class RewindButton(Button):
             for i in range(2)
         ])
         symbol.arrange_submobjects(RIGHT, buff = 0)
-        symbol.scale_to_fit_height(self.radius * 0.7)
+        symbol.scale_to_fit_height(self.inner_radius * 0.7)
         return symbol
 
 class StopButton(Button):
     def generate_symbol(self):
         symbol = Square(stroke_width = 0, fill_color = self.color, fill_opacity = 1)
-        symbol.scale_to_fit_height(self.radius * 0.8)
+        symbol.scale_to_fit_height(self.inner_radius * 0.8)
         return symbol
 
 
