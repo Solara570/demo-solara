@@ -56,3 +56,10 @@ class BubbleFadeOut(BubbleAnimation):
         "bubble_animation_class"  : FadeOut,
         "content_animation_class" : FadeOut,
     }
+
+
+
+
+
+
+

@@ -32,7 +32,6 @@ class Button(VMobject):
         "color" : YELLOW,
         "inner_radius" : 2,
         "outer_radius" : 2.5,
-        "circle_stroke_width" : 30,
     }
     def generate_points(self):
         ring = Annulus(
@@ -105,41 +104,50 @@ class StopButton(Button):
 # Useful when adding an angle indicator with a label.
 class AngleArc(VMobject):
     CONFIG = {
-        "radius" : 0.5,
-        "start_angle" : 0,
         "angle_text" : "",
-        "arc_color" : WHITE,
-        "text_color" : WHITE,
+        "minor_arc" : True,
+        "scale_tex" : True,
+        "arc_config" : {"radius" : 0.4, "color" : WHITE},
+        "tex_config" : {"fill_color" : WHITE},
     }
     def __init__(self, *angle_pts, **kwargs):
-        digest_config(self, kwargs, locals())
-        VMobject.__init__(self, **kwargs)
-        start_angle, delta_angle = self.process_angle_info()
-        tip_point = self.get_tip_point()
-        self.arc = Arc(
-            delta_angle, start_angle = start_angle,
-            radius = self.radius, color = self.arc_color
+        VMobject.__init__(self, **kwargs) 
+        self.angle_pts = self.process_angle_pts(angle_pts)
+        self.start_angle, self.delta_angle = self.compute_angles()
+        arc = Arc(
+            self.delta_angle, start_angle = self.start_angle,
+            **self.arc_config
         )
-        self.text = TexMobject(self.angle_text).highlight(self.text_color)
-        self.adjust_text()
-        angle_and_text = VGroup(self.arc, self.text)
-        angle_and_text.shift(tip_point)
-        self.add(angle_and_text)
+        tex = TexMobject(self.angle_text, **self.tex_config)
+        self.adjust_tex_to_arc(tex, arc)
+        self.arc_and_tex = VGroup(arc, tex)
+        vertex = self.get_vertex()
+        self.arc_and_tex.shift(vertex)
+        self.add(self.arc_and_tex)
 
-    def process_angle_info(self):
-        pts = self.angle_pts
-        assert len(pts) == 3
-        if isinstance(pts[0], Mobject):
-            A, B, C = [mob.get_center() for mob in pts]
-        else:
-            A, B, C = pts
+    def get_vertex(self):
+        return self.angle_pts[1]
+
+    def get_arc(self):
+        return self.arc_and_tex[0]
+
+    def get_tex(self):
+        return self.arc_and_tex[1]
+
+    # Misc
+    def process_angle_pts(self, angle_pts):
+        assert len(angle_pts) == 3
+        def process(obj):
+            return (obj.get_center() if isinstance(obj, Mobject) else obj)
+        return map(process, angle_pts)
+
+    def compute_angles(self):
+        A, B, C = self.angle_pts
         start_angle = self.compute_angle(B, C)
         final_angle = self.compute_angle(B, A)
         if final_angle < start_angle:
             final_angle, start_angle = start_angle, final_angle
-        delta_angle = self.mod_angle(final_angle - start_angle)
-        if delta_angle > np.pi:
-            delta_angle -= TAU
+        delta_angle = self.compute_delta_angle(start_angle, final_angle, self.minor_arc)
         return start_angle, delta_angle
 
     def compute_angle(self, start_pt, final_pt):
@@ -147,21 +155,25 @@ class AngleArc(VMobject):
         num = diff[0] + diff[1] * 1j
         return np.angle(num)
 
-    def mod_angle(self, angle):
-        return (angle - np.pi) % TAU + np.pi
+    def compute_delta_angle(self, start_angle, final_angle, minor_arc):
+        angle = (final_angle - start_angle) % TAU
+        if ((angle < np.pi) ^ minor_arc):
+            angle -= TAU
+        return angle
 
-    def get_tip_point(self):
-        pt = self.angle_pts[1]
-        if isinstance(pt, Mobject):
-            return pt.get_center()
-        else:
-            return pt
-
-    def adjust_text(self):
+    def adjust_tex_to_arc(self, tex, arc):
         # Scaling
-        self.text.scale(self.radius / 0.5)
+        if self.scale_tex:
+            tex.scale(arc.radius / 0.5)
         # Positioning
-        mid_pt = self.arc.point_from_proportion(0.5)
+        mid_pt = arc.point_from_proportion(0.5)
         shift_vec = mid_pt * 1.5
-        self.text.shift(shift_vec)
-        return self
+        tex.shift(shift_vec)
+
+
+
+
+
+
+
+
