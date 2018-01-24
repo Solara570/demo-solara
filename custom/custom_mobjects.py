@@ -34,16 +34,24 @@ class Button(VMobject):
         "outer_radius" : 2.5,
     }
     def generate_points(self):
-        ring = Annulus(
+        self.ring = Annulus(
             inner_radius = self.inner_radius,
             outer_radius = self.outer_radius,
             fill_color = self.color
         )
-        symbol = self.generate_symbol()
-        self.add(VGroup(ring, symbol))
+        self.symbol = self.generate_symbol()
+        self.add(VGroup(self.ring, self.symbol))
 
     def generate_symbol(self):
-        raise Exception("Not Implemented")
+        # raise Exception("Not Implemented")
+        return VMobject()
+
+    def get_ring(self):
+        return self.ring
+
+    def get_symbol(self):
+        return self.symbol
+
 
 class PauseButton(Button):
     def generate_symbol(self):
@@ -58,6 +66,7 @@ class PauseButton(Button):
         symbol.scale_to_fit_height(self.inner_radius)
         return symbol
 
+
 class PlayButton(Button):
     def generate_symbol(self):
         symbol = RegularPolygon(
@@ -66,6 +75,7 @@ class PlayButton(Button):
         )
         symbol.scale_to_fit_height(self.inner_radius)
         return symbol
+
 
 class SkipButton(Button):
     def generate_symbol(self):
@@ -80,6 +90,7 @@ class SkipButton(Button):
         symbol.scale_to_fit_height(self.inner_radius * 0.7)
         return symbol
 
+
 class RewindButton(Button):
     def generate_symbol(self):
         symbol = VGroup(*[
@@ -92,6 +103,7 @@ class RewindButton(Button):
         symbol.arrange_submobjects(RIGHT, buff = 0)
         symbol.scale_to_fit_height(self.inner_radius * 0.7)
         return symbol
+
 
 class StopButton(Button):
     def generate_symbol(self):
