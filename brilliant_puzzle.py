@@ -33,6 +33,21 @@ from camera import Camera
 
 #####
 
+LEFT_MID  = (LEFT_SIDE  + ORIGIN) / 2
+RIGHT_MID = (RIGHT_SIDE + ORIGIN) / 2
+
+
+class IntroduceBrilliant(Scene):
+    def construct(self):
+        title = TextMobject("Brilliant.org")
+        title.to_edge(UP)
+        rect = ScreenRectangle(height = 6)
+        rect.next_to(title, DOWN)
+        self.add(title)
+        self.play(ShowCreation(rect))
+        self.wait(1)
+
+
 class QuestionScene(Scene):
     CONFIG = {
         "animate_construction" : True,
@@ -58,25 +73,23 @@ class QuestionScene(Scene):
         self.add_dots_and_labels()
         self.show_lines()
         self.write_question()
-        if not self.animate_construction:
-            self.revert_to_original_skipping_status()
+        self.revert_to_original_skipping_status()
         self.wait()
 
     def show_circle_and_polygon(self):
         circle = Circle(
             color = WHITE, start_angle = np.pi/2., radius = self.circle_radius
         )
-        circle.move_to(self.circle_position)
-        # circle.to_edge(DOWN, buff = 1)
         polygon = RegularPolygon(
             n = self.n_sides, start_angle = np.pi/2., color = self.polygon_color
         )
-        polygon.scale(circle.radius)
+        polygon.scale(self.circle_radius)
         polygon.move_to(circle, aligned_edge = UP)
+        VGroup(circle, polygon).shift(self.circle_position)
 
         self.play(ShowCreation(circle))
         self.wait()
-        self.play(ShowCreation(polygon), run_time = 2)
+        self.play(ShowCreation(polygon))
         self.wait()
 
         self.circle = circle
@@ -335,7 +348,7 @@ class Case3Triangle(SimpleCasesScene):
         self.show_new_constructs()
         self.show_calculation()
         self.transform_result_to_table()
-        self.wait()
+        self.add_caveat()
 
     def show_new_constructs(self):
         center_dot = Dot().move_to(self.circle.get_center())
@@ -362,21 +375,18 @@ class Case3Triangle(SimpleCasesScene):
         )
         self.wait()
 
-        angle_arc = Arc(2*np.pi/3., radius = 0.3, start_angle = np.pi/2.)
-        angle_arc.shift(self.circle_position).highlight(GREY)
-        angle_text = TexMobject("{2\\pi \\over 3}")
-        angle_text.scale(0.8).highlight(GREY)
-        angle_text.next_to(angle_arc, LEFT+UP, buff = -0.1)
-        
-        self.play(
-            FadeIn(angle_arc),
-            Write(angle_text),
-            run_time = 1
+        A, B, C = vertices = self.get_polygon_vertices()
+        angle_arc = AngleArc(
+            *[A, center_dot, B], angle_text = "2\\pi \\over 3",
+            arc_config = {"radius" : 0.3, "color" : GREY},
+            tex_config = {"fill_color" : GREY},
+            tex_shifting_factor = 2
         )
+
+        self.play(Write(angle_arc), run_time = 1)
         self.wait()
 
         self.radius_texts = radius_texts
-        self.angle_text = angle_text
 
     def show_calculation(self):
         formula = TexMobject(
@@ -386,11 +396,6 @@ class Case3Triangle(SimpleCasesScene):
             "\\cdot", "\\cos", "{2\\pi \\over 3}",
             "\\\\ &=", "3"
         )
-        radius_target = formula.get_parts_by_tex("1")
-        angle_target = VGroup(*formula[-3])
-        final_result = formula[-1]
-        for target in (radius_target, angle_target):
-            target.highlight(GREY)
 
         formula.scale_to_fit_width(6.5)
         formula.next_to(self.table, DOWN, aligned_edge = LEFT, buff = -1)
@@ -399,10 +404,21 @@ class Case3Triangle(SimpleCasesScene):
         self.play(Write(VGroup(*formula[-2:])))
         self.wait()
 
-        self.final_result = final_result
+        self.final_result = formula[-1]
+        self.radian = formula[-3]
 
-    def get_final_result(self):
-        return self.final_result
+    def add_caveat(self):
+        arrow_end = self.radian.get_bottom()
+        arrow_start = arrow_end + (DOWN + LEFT / 2.)
+        arrow = Arrow(arrow_start, arrow_end)
+        caveat = TextMobject("推广弧度制使用", "从你我做起")
+        caveat.arrange_submobjects(DOWN)
+        caveat.scale(0.5)
+        caveat.next_to(arrow_start, DOWN, buff = 0)
+        group = VGroup(caveat, arrow)
+        group.highlight(GREY)
+        self.play(FadeIn(group), run_time = 0.5)
+        self.wait(0.5)
 
 
 class Case4Square(SimpleCasesScene):
@@ -497,6 +513,7 @@ class Case5Pentagon(SimpleCasesScene):
         SimpleCasesScene.construct(self)
         self.special_values_are_not_common_sense()
         self.transform_result_to_table()
+        self.decide_to_skip()
 
     def special_values_are_not_common_sense(self):
         special_values = TexMobject(
@@ -525,6 +542,26 @@ class Case5Pentagon(SimpleCasesScene):
         self.wait()
 
         self.final_result = thought.content
+        self.speech = speech
+        self.thought = thought
+
+    def decide_to_skip(self):
+        skip_tex = TextMobject("超纲了 \\\\ 换一个").scale(0.75)
+        skip_speech = SpeechBubble(direction = RIGHT)
+        skip_speech.add_content(skip_tex)
+        skip_speech.resize_to_content()
+        skip_speech.move_to(self.thought)
+        skip_speech.add_content(skip_tex)
+        tip = skip_speech.get_tip()
+        self.play(
+            BubbleFadeOut(self.thought),
+            BubbleGrowFromPoint(
+                skip_speech,
+                bubble_animation_args = [tip],
+                content_animation_args = [tip],
+            )
+        )
+        self.wait()
 
 
 class Case6Hexagon(Case4Square):
@@ -552,7 +589,6 @@ class SimpleCaseClosure(Case6Hexagon):
         self.focus_on_the_table()
         self.highlight_num_chars()
         self.show_hypothesis()
-        # self.skip_animations = False
         self.three_step_plan()
 
     def focus_on_the_table(self):
@@ -687,8 +723,6 @@ class SimpleCaseClosure(Case6Hexagon):
         self.wait()
         self.play(Write(step3_remark))
         self.wait()
-
-
 
 
 

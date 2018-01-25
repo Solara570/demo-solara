@@ -119,11 +119,12 @@ class AngleArc(VMobject):
         "angle_text" : "",
         "minor_arc" : True,
         "scale_tex" : True,
+        "tex_shifting_factor" : 1.5,
         "arc_config" : {"radius" : 0.4, "color" : WHITE},
         "tex_config" : {"fill_color" : WHITE},
     }
     def __init__(self, *angle_pts, **kwargs):
-        VMobject.__init__(self, **kwargs) 
+        VMobject.__init__(self, **kwargs)
         self.angle_pts = self.process_angle_pts(angle_pts)
         self.start_angle, self.delta_angle = self.compute_angles()
         arc = Arc(
@@ -174,12 +175,14 @@ class AngleArc(VMobject):
         return angle
 
     def adjust_tex_to_arc(self, tex, arc):
+        if not hasattr(self, "tex_scaling_factor"):
+            self.tex_scaling_factor = arc.radius / 0.5
         # Scaling
         if self.scale_tex:
-            tex.scale(arc.radius / 0.5)
+            tex.scale(self.tex_scaling_factor)
         # Positioning
         mid_pt = arc.point_from_proportion(0.5)
-        shift_vec = mid_pt * 1.5
+        shift_vec = mid_pt * self.tex_shifting_factor
         tex.shift(shift_vec)
 
 
