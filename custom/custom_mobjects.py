@@ -191,11 +191,12 @@ class AngleArc(VMobject):
 class FakeQEDSymbol(VMobject):
     CONFIG = {
         "jagged_percentage" : 0.02,
+        "color" : WHITE,
         "height" : 2,
     }
     def generate_points(self):
         fake_qed = fractalify(
-            Square(fill_color = WHITE, fill_opacity = 1, stroke_width = 0),
+            Square(fill_color = self.color, fill_opacity = 1, stroke_width = 0),
             order = 1, dimension = 1 + self.jagged_percentage,
         )
         self.add(fake_qed)
