@@ -14,6 +14,7 @@ from animation.playground import *
 
 from topics.geometry import *
 from topics.objects import *
+from topics.fractals import *
 from topics.number_line import *
 from topics.three_dimensions import *
 from topics.common_scenes import *
