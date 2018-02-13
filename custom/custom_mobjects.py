@@ -186,6 +186,21 @@ class AngleArc(VMobject):
         tex.shift(shift_vec)
 
 
+## Fake QED symbol
+# Used when try to claim something "proved"
+class FakeQEDSymbol(VMobject):
+    CONFIG = {
+        "jagged_percentage" : 0.02,
+        "height" : 2,
+    }
+    def generate_points(self):
+        fake_qed = fractalify(
+            Square(fill_color = WHITE, fill_opacity = 1, stroke_width = 0),
+            order = 1, dimension = 1 + self.jagged_percentage,
+        )
+        self.add(fake_qed)
+        self.scale_to_fit_height(self.height)
+
 
 
 
