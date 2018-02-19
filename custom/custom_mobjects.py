@@ -113,6 +113,53 @@ class StopButton(Button):
         return symbol
 
 
+class TickButton(Button):
+    CONFIG = {
+        "color" : GREEN,
+    }
+    def generate_symbol(self):
+        symbol = TexMobject("\\checkmark")
+        symbol.highlight(self.color)
+        symbol.scale_to_fit_height(self.inner_radius)
+        return symbol
+
+
+## Danger Sign
+class HollowTriangle(VMobject):
+    CONFIG = {
+        "inner_height" : 3.5,
+        "outer_height" : 5,
+        "color" : RED,
+        "fill_opacity" : 1,
+        "stroke_width" : 0,
+        "mark_paths_closed" : False,
+        "propagate_style_to_family" : True,
+    }
+    def generate_points(self):
+        self.points = []
+        inner_tri = RegularPolygon(n = 3, start_angle = np.pi/2)
+        outer_tri = inner_tri.copy()
+        inner_tri.flip()
+        inner_tri.scale_to_fit_height(self.inner_height, about_point = ORIGIN)
+        outer_tri.scale_to_fit_height(self.outer_height, about_point = ORIGIN)
+        self.points = outer_tri.points
+        self.add_subpath(inner_tri.points)
+
+
+class DangerSign(VMobject):
+    CONFIG = {
+        "color" : RED,
+        "triangle_config" : {},
+    }
+    def generate_points(self):
+        hollow_tri = HollowTriangle(**self.triangle_config)
+        bang = TexMobject("!")
+        bang.scale_to_fit_height(hollow_tri.inner_height * 0.7)
+        bang.move_to(hollow_tri.get_center_of_mass())
+        self.add(hollow_tri, bang)
+        self.highlight(self.color)
+
+
 ## AngleArc class
 # Useful when adding an angle indicator with a label.
 class AngleArc(VMobject):
@@ -187,24 +234,31 @@ class AngleArc(VMobject):
         tex.shift(shift_vec)
 
 
-## Fake QED symbol
-# Used when try to claim something "proved"
-class FakeQEDSymbol(VMobject):
+## QED symbols
+# Used when try to claim something proved/"proved".
+class QEDSymbol(VMobject):
     CONFIG = {
-        "jagged_percentage" : 0.02,
         "color" : WHITE,
-        "height" : 2,
+        "height" : 0.5,
     }
     def generate_points(self):
-        fake_qed = fractalify(
-            Square(fill_color = self.color, fill_opacity = 1, stroke_width = 0),
-            order = 1, dimension = 1 + self.jagged_percentage,
-        )
-        self.add(fake_qed)
+        qed = Square(fill_color = self.color, fill_opacity = 1, stroke_width = 0)
+        self.add(qed)
         self.scale_to_fit_height(self.height)
 
 
-
+class FakeQEDSymbol(VMobject):
+    CONFIG = {
+        "jagged_percentage" : 0.02,
+        "order" : 1,
+        "qed_config" : {},
+    }
+    def generate_points(self):
+        fake_qed = fractalify(
+            QEDSymbol(**self.qed_config),
+            order = self.order, dimension = 1+self.jagged_percentage
+        )
+        self.add(fake_qed)
 
 
 
