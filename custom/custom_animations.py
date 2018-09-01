@@ -1,25 +1,14 @@
-import numpy as np
+#coding=utf-8
 
-from helpers import *
-from mobject import Mobject
-from mobject.vectorized_mobject import *
-from mobject.point_cloud_mobject import *
-from mobject.svg_mobject import *
-from mobject.tex_mobject import *
+from constants import *
+from utils.config_ops import digest_config
+from utils.rate_functions import *
 
-from animation.animation import Animation
-from animation.transform import *
-from animation.simple_animations import *
-from animation.playground import *
+from animation.composition import AnimationGroup
+from animation.creation import ShowCreation, Write, FadeIn, FadeOut, GrowFromPoint
 
-from topics.geometry import *
-from topics.objects import *
-from topics.number_line import *
-from topics.three_dimensions import *
-from topics.common_scenes import *
-
-from scene import Scene
-from camera import Camera
+from mobject.mobject import Mobject, Group
+from mobject.types.vectorized_mobject import VMobject, VGroup
 
 # self.skip_animations
 # self.force_skipping()
@@ -42,7 +31,7 @@ class BubbleAnimation(AnimationGroup):
             bubble, *self.bubble_animation_args, **self.bubble_animation_kwargs
         )
         create_content = self.content_animation_class(
-            Group(*bubble.content), *self.content_animation_args, **self.content_animation_kwargs
+            VGroup(*bubble.content), *self.content_animation_args, **self.content_animation_kwargs
         )
         AnimationGroup.__init__(
             self, create_bubble, create_content, **kwargs
@@ -70,6 +59,12 @@ class BubbleGrowFromPoint(BubbleAnimation):
         "bubble_animation_args"    : [ORIGIN],
         "content_animation_class"  : GrowFromPoint,
         "content_animation_args"   : [ORIGIN],
+    }
+
+class BubbleShrinkToPoint(BubbleGrowFromPoint):
+    CONFIG = {
+        "bubble_animation_kwargs"  : {"rate_func" : lambda t: 1-smooth(t)},
+        "content_animation_kwargs" : {"rate_func" : lambda t: 1-smooth(t)},
     }
 
 
