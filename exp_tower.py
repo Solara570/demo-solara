@@ -1,23 +1,35 @@
-#!/usr/bin/env python
 #coding=utf-8
 
-import numpy as np
-
-from helpers import *
-from mobject import Mobject
-from mobject.vectorized_mobject import *
-from mobject.tex_mobject import *
-
-from animation.animation import Animation
-from animation.transform import *
-from animation.simple_animations import *
+from constants import *
+from animation.creation import Write, FadeIn, FadeOut, DrawBorderThenFill
+from animation.composition import AnimationGroup
+from animation.indication import Indicate, ShowCreationThenDestruction
+from animation.transform import Transform, ReplacementTransform, MoveToTarget
+from mobject.types.vectorized_mobject import VMobject, VGroup
+from mobject.svg.tex_mobject import TexMobject, TextMobject
+from mobject.shape_matchers import SurroundingRectangle
+from scene.scene import Scene
 
 from custom.custom_mobjects import *
 
-from topics.geometry import *
 
-from scene import Scene
-from camera import Camera
+# import numpy as np
+
+# from helpers import *
+# from mobject import Mobject
+# from mobject.vectorized_mobject import *
+# from mobject.tex_mobject import *
+
+# from animation.animation import Animation
+# from animation.transform import *
+# from animation.simple_animations import *
+
+# from custom.custom_mobjects import *
+
+# from topics.geometry import *
+
+# from scene import Scene
+# from camera import Camera
 
 # self.skip_animations
 # self.force_skipping()
@@ -32,7 +44,7 @@ class ExpDots(VMobject):
         "gap_buff" : 0.1,
     }
     def generate_points(self):
-        dots = TexMobject(list("..."))
+        dots = TexMobject(*list("..."))
         dots.arrange_submobjects(RIGHT, buff = self.gap_buff)
         dots.rotate(self.angle)
         dots.scale(1.5)
@@ -117,13 +129,11 @@ class CoverRectangle(VMobject):
 
     def generate_points(self):
         rect = SurroundingRectangle(self.covered_mob)
-        rect.set_style_data(
-            stroke_color = self.stroke_color, stroke_width = self.stroke_width,
-            fill_color = self.fill_color, fill_opacity = self.fill_opacity
-        )
+        rect.set_stroke(color = self.stroke_color, width = self.stroke_width)
+        rect.set_fill(color = self.fill_color, opacity = self.fill_opacity)
         text = TextMobject(str(self.text))
-        text.highlight(self.text_color)
-        text.scale_to_fit_height(rect.get_height() * self.text_height_factor)
+        text.set_color(self.text_color)
+        text.set_height(rect.get_height() * self.text_height_factor)
         text.move_to(rect)
         self.group = VGroup(rect, text)
         self.add(self.group)
@@ -153,7 +163,7 @@ class ExpTowerIntro(Scene):
         towers.append(ExpTower(order = highest_order, is_infinite = True))
         heights = list(np.linspace(3, 4.5, highest_order + 2))
         for tower, height in zip(towers, heights):
-            tower.scale_to_fit_height(height)
+            tower.set_height(height)
 
         init_tower = towers[0]
         final_tower = towers[-1]
@@ -214,7 +224,7 @@ class ExpTowerIntro(Scene):
         for k in range(5, -1, -1):
             countdown_text = TexMobject(str(k))
             countdown_text.scale(1.5)
-            countdown_text.highlight(YELLOW)
+            countdown_text.set_color(YELLOW)
             countdown_text.to_corner(RIGHT+UP)
             self.add(countdown_text)
             self.wait()
@@ -278,7 +288,7 @@ class ExpTowerIntro(Scene):
 
         # Reveal the final answer
         result = TexMobject("x", "=", "\\sqrt", "2")
-        result.scale_to_fit_height(source_eq.get_height() * 0.7)
+        result.set_height(source_eq.get_height() * 0.7)
         result.move_to(source_eq)
         self.play(*[
             ReplacementTransform(source_eq[m], result[n], path_arc = angle)
@@ -306,15 +316,15 @@ class IntuitiveButDangerous(Scene):
         texts.scale(1.5)
         texts.arrange_submobjects(DOWN, buff = 0.8)
         tick = TickButton()
-        tick.scale_to_fit_height(height)
+        tick.set_height(height)
         tick.next_to(simple, RIGHT)
         danger = DangerSign()
-        danger.scale_to_fit_height(height)
+        danger.set_height(height)
         danger.next_to(trap, LEFT)
         words = [(simple, tick), (but, ), (danger, trap)]
         colors = [GREEN, WHITE, RED]
         for word, color in zip(words, colors):
-            VGroup(word).highlight(color)
+            VGroup(word).set_color(color)
             self.play(FadeIn(VGroup(word)), run_time = 1)
             self.wait(0.5)
         self.wait()
@@ -322,10 +332,10 @@ class IntuitiveButDangerous(Scene):
 
     def rewind_and_play_again(self):
         watch_again = TextMobject("再看一遍...")
-        watch_again.highlight(YELLOW)
+        watch_again.set_color(YELLOW)
         rewind, play = buttons = VGroup(*[
-            Button().get_symbol().highlight(YELLOW).scale_to_fit_height(1)
-            for Button in RewindButton, PlayButton
+            Button().get_symbol().set_color(YELLOW).set_height(1)
+            for Button in (RewindButton, PlayButton)
         ])
         group = VGroup(watch_again, rewind)
         group.arrange_submobjects(DOWN, aligned_edge = RIGHT)
@@ -373,7 +383,7 @@ class Prove2Equals4(Scene):
             "N",
         ]
         anything_text = TextMobject("等号右边似乎可以放任何数...")
-        anything_text.highlight(YELLOW)
+        anything_text.set_color(YELLOW)
         anything_text.to_edge(UP)
         equations = [
             VGroup(ExpTower(order = 5), TexMobject("=", rhs).scale(0.8)).scale(2.5)
@@ -413,7 +423,7 @@ class Prove2Equals4(Scene):
 
     def choose_two_special_numbers(self):
         two_and_four_text = TextMobject("现在选择两个特殊的数...")
-        two_and_four_text.highlight(YELLOW)
+        two_and_four_text.set_color(YELLOW)
         two_and_four_text.to_edge(UP)
         self.play(Transform(self.anything_text, two_and_four_text))
         self.wait()
@@ -428,7 +438,7 @@ class Prove2Equals4(Scene):
         equations = [two_equation, four_equation]
         targets = [equation[1][1] for equation in equations]
         two, four = num_texs = [
-            TexMobject(str(num)).highlight(color).match_height(target).move_to(target)
+            TexMobject(str(num)).set_color(color).match_height(target).move_to(target)
             for num, color, equation, target in zip(nums, colors, equations, targets)
         ]
 
@@ -456,7 +466,7 @@ class Prove2Equals4(Scene):
         sps = VGroup()
         for equation, num, color in zip(self.equations, self.nums, self.colors):
             sp = TexMobject("x", "^{%d}" % num, "=", "%d" % num)
-            sp[1::2].highlight(color)
+            sp[1::2].set_color(color)
             sp.scale(2)
             sp.next_to(equation, DOWN, buff = 1)
             sps.add(sp)
@@ -465,7 +475,7 @@ class Prove2Equals4(Scene):
         for num, sp, color in zip(self.nums, sps, self.colors):
             rs = TexMobject("x", "=", "%d" % num , "^{{1}\\over{%d}}" % num, "=\\sqrt{2}")
             for tex in (rs[2], rs[3][2]):
-                tex.highlight(color)
+                tex.set_color(color)
             rs.match_height(sp).move_to(sp)
             rss.add(rs)
 
@@ -504,7 +514,7 @@ class Prove2Equals4(Scene):
 
         two_equals_four = TexMobject("2", "=", "4")
         for tex, color in zip(two_equals_four, [GREEN, WHITE, RED]):
-            tex.highlight(color)
+            tex.set_color(color)
         two_equals_four.scale(3)
         two_equals_four.to_edge(DOWN, buff = 1)
         sources = VGroup(*[
@@ -521,7 +531,7 @@ class Prove2Equals4(Scene):
         self.wait()
 
         issue = TextMobject("思考：\\\\问题在哪？")
-        issue.highlight(YELLOW)
+        issue.set_color(YELLOW)
         issue.to_corner(RIGHT+DOWN)
         self.play(Write(issue), run_time = 1)
         self.wait(2)
@@ -546,14 +556,14 @@ class TheEnd(Scene):
 class Thumbnail(Scene):
     def construct(self):
         exp_tower = ExpTower(element = "x", order = 10)
-        exp_tower.scale_to_fit_height(6)
+        exp_tower.set_height(6)
         exp_tower.gradient_highlight(YELLOW, BLUE)
         two, equal_sign, four = equation = TexMobject("2", "=", "4")
-        two.highlight(GREEN)
-        four.highlight(RED)
+        two.set_color(GREEN)
+        four.set_color(RED)
         equation.scale(10)
         question_mark = TexMobject("?")
-        question_mark.scale_to_fit_height(2)
+        question_mark.set_height(2)
         question_mark.next_to(equal_sign, UP, buff = 0.5)
 
         notations = VGroup(*[
@@ -565,7 +575,7 @@ class Thumbnail(Scene):
             notation.scale(3)
             notation.rotate(angle)
             notation.next_to(num, direction)
-            notation.highlight(color)
+            notation.set_color(color)
 
         self.add(exp_tower, notations)
         self.add(FullScreenFadeRectangle())

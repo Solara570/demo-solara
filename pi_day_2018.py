@@ -1,11 +1,16 @@
-#!/usr/bin/env python
 #coding=utf-8
 
-from mobject.tex_mobject import *
-from topics.geometry import *
-from custom.custom_mobjects import *
-from scene import Scene
-from camera import Camera
+from constants import *
+from utils.config_ops import digest_config
+
+from mobject.types.vectorized_mobject import VMobject, VGroup
+from mobject.svg.tex_mobject import TexMobject, TextMobject
+from mobject.svg.brace import Brace
+from mobject.geometry import Rectangle, Sector, DashedLine
+from mobject.shape_matchers import SurroundingRectangle
+from scene.scene import Scene
+
+from custom.custom_mobjects import QEDSymbol
 
 
 def wallis_numer(n):
@@ -35,7 +40,7 @@ class WallisRectangles(VMobject):
         self.adjust_colors()
         self.generate_rects()
         self.add(self.rects)
-        self.scale_to_fit_height(self.height)
+        self.set_height(self.height)
         self.center()
 
     def adjust_colors(self):
@@ -170,15 +175,15 @@ class DeriveWallisProduct(Scene):
 
     def add_words(self):
         # Wallis product
-        product = TexMobject(*[
+        product = TexMobject(*(
             ["\\text{Wallis公式：}"] + [
                 "{%d \\over %d} \\," % (wallis_numer(n), wallis_denom(n))
                 for n in range(1, 8)
             ] + ["\\cdots = {\\pi \\over 2}"]
-        ]).highlight(YELLOW)
+        )).set_color(YELLOW)
         rect = SurroundingRectangle(product, color = YELLOW, buff = 0.25)
         wallis_product = VGroup(product, rect)
-        wallis_product.scale_to_fit_width(6)
+        wallis_product.set_width(6)
 
         # All those steps
         nums = [
@@ -214,7 +219,7 @@ class DeriveWallisProduct(Scene):
             formula.next_to(word, DOWN, aligned_edge = LEFT)
             steps.add(VGroup(num, word, formula))
         steps.arrange_submobjects(DOWN, buff = 0.6, aligned_edge = LEFT)
-        steps.scale_to_fit_width(6)
+        steps.set_width(6)
         steps.next_to(wallis_product, DOWN)
         VGroup(wallis_product, steps).center().to_edge(RIGHT, buff = 0.15)
 

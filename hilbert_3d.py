@@ -1,8 +1,12 @@
-from helpers import *
-from animation.simple_animations import *
-from animation.transform import *
-from topics.fractals import *
-from topics.three_dimensions import *
+#coding=utf-8
+
+from constants import *
+from animation.creation import ShowCreation, FadeIn, FadeOut, Uncreate
+from animation.transform import Transform
+from once_useful_constructs.fractals import rotate, SelfSimilarSpaceFillingCurve
+from mobject.svg.tex_mobject import TextMobject
+from scene.three_d_scene import ThreeDScene
+
 
 # Implemented the 3D version of Hilbert curve
 class HilbertCurve3D(SelfSimilarSpaceFillingCurve):
@@ -51,7 +55,7 @@ class Show3DHilbertCurve(ThreeDScene):
     }
     def construct(self):
         # Setup
-        self.set_camera_position(phi = np.pi/3, theta = 3*np.pi/4)
+        self.set_camera_orientation(phi = np.pi/3, theta = 3*np.pi/4)
         self.begin_ambient_camera_rotation(np.pi/50)
 
         # Part 1: Increasing the order
@@ -70,7 +74,7 @@ class Show3DHilbertCurve(ThreeDScene):
         self.wait(3)
 
         # Part 2: Show one-touch construction
-        self.play(ShowCreation(HilbertCurve3D(order = self.max_order)), run_time = 60)
+        self.play(ShowCreation(fractal, run_time = 60))
         self.wait(5)
 
         # Part 3: Decreasing the order till it vanishes
@@ -83,7 +87,7 @@ class Show3DHilbertCurve(ThreeDScene):
 
         # The end
         self.stop_ambient_camera_rotation()
-        self.set_camera_position(phi = 0, theta = -np.pi/2)
+        self.set_camera_orientation(phi = 0, theta = -np.pi/2)
         author = TextMobject("@Solara570")
         author.scale(1.5)
         author.to_corner(RIGHT+DOWN)
@@ -93,5 +97,6 @@ class Show3DHilbertCurve(ThreeDScene):
 
 class Thumbnail(ThreeDScene):
     def construct(self):
-        self.set_camera_position(phi = np.pi/3, theta = 2*np.pi/5)
+        self.set_camera_orientation(phi = np.pi/3, theta = 2*np.pi/5, distance = 1000.0)
         self.add(HilbertCurve3D(order = 3, radius = 3))
+

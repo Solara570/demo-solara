@@ -1,9 +1,15 @@
-from helpers import *
+#coding=utf-8
 
-from animation.transform import *
-from animation.simple_animations import *
-from mobject.tex_mobject import *
-from topics.fractals import *
+from constants import *
+from utils.rate_functions import *
+
+from animation.creation import Write
+from animation.composition import Succession
+from animation.transform import Transform, ReplacementTransform
+from mobject.types.vectorized_mobject import VMobject, VGroup
+from mobject.svg.tex_mobject import TextMobject
+from once_useful_constructs.fractals import rotate, LindenmayerCurve
+from scene.scene import Scene
 
 
 class TohruCurve(LindenmayerCurve):
@@ -15,8 +21,7 @@ class TohruCurve(LindenmayerCurve):
         },
         "pass_command" : ["X", "Y"],
         "scale_factor" : np.sqrt(2),
-        "shift_vector" : LEFT, 
-        "radius"       : 4,
+        "radius"       : 3.5,
         "colors"       : [ORANGE, GREEN],
         "start_step"   : RIGHT,
         "angle"        : np.pi/2,
@@ -28,17 +33,15 @@ class TohruCurve(LindenmayerCurve):
             13 : 1.5,
             16 : 1,
         },
-        "num_submobjects" : 500,
+        "num_submobjects" : 512,
     }
 
     def __init__(self, **kwargs):
         LindenmayerCurve.__init__(self, **kwargs)
-        self.rotate(-self.order*np.pi/4)
-        self.shift(self.radius/2. * self.shift_vector)
-        self.shift(UP)
+        self.rotate(-self.order * np.pi/4)
 
     def get_anchor_points(self):
-        step = float(self.radius) * self.start_step 
+        step = float(self.radius) * self.start_step
         step /= (self.scale_factor**self.order)
         curr = np.zeros(3)
         result = [curr]
@@ -54,51 +57,64 @@ class TohruCurve(LindenmayerCurve):
                 result.append(curr)
         return np.array(result)
 
+    def get_start(self):
+        return np.array(self.submobjects[0].points[0])
+
+    def get_end(self):
+        return np.array(self.submobjects[-1].points[-1])
+
 
 class KannaCurve(TohruCurve):
     CONFIG = {
         "colors"       : [WHITE, PURPLE],
-        "shift_vector" : RIGHT,
         "start_step"   : LEFT,
     }
 
 
 class TwinDragon(VMobject):
     CONFIG = {
-        'order' : 0,
+        'order' : 3,
     }
     def generate_points(self):
-        self.add(TohruCurve(order = self.order))
-        self.add(KannaCurve(order = self.order))
+        if self.order < 0:
+            return VMobject()
+        tc = TohruCurve(order = self.order)
+        kc = KannaCurve(order = self.order)
+        kc.shift(tc.get_end() - kc.get_start())
+        group = VGroup(tc, kc).center()
+        self.add(group)
 
 
 class ChannelLogo(Scene):
     CONFIG = {
-        "max_order" : 19,
+        "max_order" : 18,
     }
     def construct(self):
         # Generate transformation animations of the twin dragon curve
         anims = list()
-        fractal = TwinDragon()
-        anims.append(FadeIn(fractal, run_time = 0.25))
-        for order in range(1, self.max_order):
+        fractal = VMobject()
+        fractal.shift(UP)
+        for order in range(-1, self.max_order+1):
             new_fractal = TwinDragon(order = order)
+            new_fractal.shift(UP)
+            run_time = 0.5 if order >= 0 else 0
             anims.append(
                 Transform(
                     fractal, new_fractal,
                     submobject_mode = "all_at_once",
-                    run_time = 0.5,
+                    run_time = run_time,
                 )
             )
+            fractal = new_fractal
 
         # Add the channel name 
         text = TextMobject("Solara570")
-        text.scale(1.5).to_edge(DOWN, buff = 1.2)
+        text.scale(2).to_edge(DOWN, buff = 1.2)
 
         # Now sit back and watch
         self.play(
-            Succession(*anims),
-            Write(text, rate_func = squish_rate_func(smooth, 0.1, 0.9)),
+            Succession(*anims, rate_func = smooth),
+            Write(text, lag_factor = 2.5),
             run_time = 4.5,
         )
 

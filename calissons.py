@@ -1,27 +1,27 @@
-#!/usr/bin/env python
 #coding=utf-8
 
 import numpy as np
 import itertools as it
-
-from helpers import *
-from mobject import Mobject
-from mobject.vectorized_mobject import *
-from mobject.svg_mobject import *
-from mobject.tex_mobject import *
+from constants import *
+from utils.bezier import interpolate
+from utils.config_ops import digest_config
+from utils.rate_functions import *
 
 from animation.animation import Animation
-from animation.transform import *
-from animation.simple_animations import *
+from animation.composition import AnimationGroup
+from animation.creation import ShowCreation, Write, FadeIn, FadeOut, DrawBorderThenFill, GrowFromCenter
+from animation.transform import Transform, MoveToTarget, ApplyMethod
+from animation.indication import Indicate
+from mobject.types.vectorized_mobject import VMobject
+from mobject.svg.tex_mobject import TexMobject, TextMobject
+from mobject.svg.brace import Brace
+from mobject.geometry import Square, Line, DashedLine
+from mobject.shape_matchers import SurroundingRectangle
+from scene.scene import Scene
+from scene.three_d_scene import ThreeDScene
 
 from custom.custom_helpers import *
-
-from topics.geometry import *
-from topics.fractals import *
-from topics.three_dimensions import *
-
-from scene import Scene
-from camera import Camera
+from custom.custom_mobjects import FakeQEDSymbol
 
 # self.skip_animations
 # self.force_skipping()
@@ -34,7 +34,7 @@ def generate_pattern(dim):
     """Generate a random pattern of Calisson tilling with a given dimension ``dim``."""
     pattern = np.random.randint(dim + 1, size = (dim, dim))
     # Try to make the tilling more balanced...
-    for k in random.sample(range(dim), max(1, dim / 3)):
+    for k in random.sample(range(dim), max(1, dim // 3)):
         pattern.T[k].sort()
     pattern.sort()
     pattern.T.sort()
@@ -42,11 +42,13 @@ def generate_pattern(dim):
 
 #####
 ## Constants
+# POS = (phi, theta, distance)
+# To make it more convincing, the distance is set to be HUGE.
 
-DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4.)
-UP_POS    = (0, 0)
-FRONT_POS = (np.pi/2., 0)
-RIGHT_POS = (np.pi/2., np.pi/2.)
+DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 10000000)
+UP_POS    = (0, 0, 10000000)
+FRONT_POS = (np.pi/2., 0, 10000000)
+RIGHT_POS = (np.pi/2., np.pi/2., 10000000)
 
 AMM_PATTERN = np.array([
     [5, 5, 5, 4, 3],
@@ -116,7 +118,7 @@ class CalissonTilling(VMobject):
         out_tiles = VGroup()
         for i in range(dim ** 2):
             tile = out_std.copy()
-            tile.shift((i % dim) * UP + (i / dim) * RIGHT)
+            tile.shift((i % dim) * UP + (i // dim) * RIGHT)
             out_tiles.add(tile)
         up_tiles = out_tiles.copy()
         up_tiles.rotate(-2.*np.pi/3., axis = [1, 1, 1], about_point = ORIGIN)
@@ -169,7 +171,7 @@ class CalissonTilling(VMobject):
         return self
 
     def adjust_size(self):
-        self.scale_to_fit_height(self.height)
+        self.set_height(self.height)
         self.move_to(ORIGIN)
         return self
 
@@ -336,7 +338,7 @@ class Rhombus120(VMobject):
         color = self.get_fill_color()
         counter_str = str(counter) if isinstance(counter, int) else counter
         counter_tex = TexMobject(counter_str)
-        counter_tex.highlight(color).next_to(self.rhombus, DOWN)
+        counter_tex.set_color(color).next_to(self.rhombus, DOWN)
         return counter_tex
 
     def get_counter_tex(self):
@@ -441,7 +443,7 @@ class CalissonTillingScene(ThreeDScene):
 
 class TillingProblem3DPart(CalissonTillingScene):
     CONFIG = {
-        "random_seed" : hash("Solara") % hash("570"),
+        "random_seed" : hash("Solara570") % 2**32,
     }
     def construct(self):
         self.show_border_and_reflines()
@@ -451,7 +453,7 @@ class TillingProblem3DPart(CalissonTillingScene):
         self.sync_with_2d_part()
 
     def show_border_and_reflines(self):
-        self.set_camera_position(*DIAG_POS)
+        self.set_camera_orientation(*DIAG_POS)
         self.wait()
 
         init_ct = self.cts[0]
@@ -489,7 +491,7 @@ class TillingProblem3DPart(CalissonTillingScene):
         old_ct = self.cts[0]
         pattern_ct = self.cts[1]
         self.play(
-            Transform(old_ct, pattern_ct, path_arc = np.pi, path_arc_axis = [1, 1, 1]),
+            Transform(old_ct, pattern_ct, path_arc = np.pi, path_arc_axis = np.array([1., 1., 1.])),
             run_time = 3,
         )
         self.wait()
@@ -535,11 +537,11 @@ class TillingProblem2DPart(CalissonTillingScene):
         
         for text in (geom_text, claim_text, twist_text):
             text.arrange_submobjects(DOWN, aligned_edge = LEFT)
-        try_tilling_text[1].highlight(GREEN)
+        try_tilling_text[1].set_color(GREEN)
         remark.scale(0.5)
-        remark.highlight(GREEN)
+        remark.set_color(GREEN)
         remark.next_to(try_tilling_text[1], DOWN, buff = 0.1)
-        how_to_prove_text.highlight(YELLOW)
+        how_to_prove_text.set_color(YELLOW)
 
         bg_texts = VGroup(
             geom_text,
@@ -674,7 +676,7 @@ class TillingProblem2DPart(CalissonTillingScene):
 
     def countdown(self):
         countdown_texts = VGroup(*[TextMobject(str(k)) for k in range(5, -1, -1)])
-        countdown_texts.highlight(YELLOW)
+        countdown_texts.set_color(YELLOW)
         for text in countdown_texts:
             text.scale(1.5)
             text.next_to(self.how_to_prove_text[0], RIGHT, buff = 3)
@@ -700,7 +702,7 @@ class DifferentViews(CalissonTillingScene):
         self.sync_with_2d_part()
 
     def add_tilling(self):
-        self.set_camera_position(*DIAG_POS)
+        self.set_camera_orientation(*DIAG_POS)
         self.tilling = CalissonTilling(
             dimension = 5, pattern = AMM_PATTERN, enable_fill = True
         )
@@ -716,7 +718,7 @@ class DifferentViews(CalissonTillingScene):
         brace1, brace2 = self.braces
         self.play(GrowFromCenter(brace1), GrowFromCenter(brace2), run_time = 2)
         self.wait()
-        self.play(Write(self.texts), run_time = 1)
+        self.play(FadeIn(self.texts), run_time = 1)
         self.wait()
         
     def change_perspective(self):
@@ -747,14 +749,13 @@ class DifferentViews(CalissonTillingScene):
     def get_brace_and_text(self, perspective, direction):
         anchors = self.tilling.get_border().get_anchors()
         text = TexMobject("n")
+        self.add_fixed_orientation_mobjects(text)
         if perspective == "Up":
-            text.rotate(np.pi/2)
             if direction == "x":
                 brace = self.get_basic_brace("downleft")
             else:
                 brace = self.get_basic_brace("upleft")
         elif perspective == "Front":
-            text.rotate(np.pi/2).rotate(np.pi/2, axis = UP)
             if direction == "x":
                 brace = self.get_basic_brace("downleft")
                 brace.rotate(np.pi/2., axis = UP, about_point = anchors[3])
@@ -762,7 +763,6 @@ class DifferentViews(CalissonTillingScene):
                 brace = self.get_basic_brace("left")
                 brace.rotate(-np.pi/2., axis = OUT, about_point = anchors[1])
         elif perspective == "Right":
-            text.rotate(np.pi).rotate(-np.pi/2, axis = RIGHT)
             if direction == "x":
                 brace = self.get_basic_brace("downright")
             else:
@@ -805,7 +805,7 @@ class TillingSolution3DPart(CalissonTillingScene):
 
     def setup_tilling(self):
         self.wait(2)
-        self.set_camera_position(*DIAG_POS)
+        self.set_camera_orientation(*DIAG_POS)
         self.tilling = CalissonTilling(dimension = 5, pattern = AMM_PATTERN)
         self.play(Write(self.tilling, rate_func = smooth), run_time = 3)
         self.wait(2)
@@ -817,7 +817,7 @@ class TillingSolution3DPart(CalissonTillingScene):
     def shake_camera_around(self):
         nudge = TAU / 30
         nangles = 60
-        phi, theta = DIAG_POS
+        phi, theta, distance = DIAG_POS
         self.move_camera(phi - nudge, theta, run_time = 1)
         self.wait()
         for angle in np.linspace(TAU/4, 5*TAU/4, nangles-1):
@@ -840,14 +840,14 @@ class TillingSolution2DPart(CalissonTillingScene):
 
         imagine_3d_text = TextMobject("（想象这是一个三维图案...）")
         imagine_3d_text.to_corner(RIGHT+UP)
-        imagine_3d_text.highlight(YELLOW)
+        imagine_3d_text.set_color(YELLOW)
 
         rhombi = VGroup(*[
             RhombusType(rhombus_config = {"fill_opacity" : 1})
             for RhombusType in (RRhombus, HRhombus, LRhombus)
         ])
         time_texts = VGroup(*[
-            TexMobject("\\times", "n^2").scale(1.2).highlight(rhombus.get_fill_color())
+            TexMobject("\\times", "n^2").scale(1.2).set_color(rhombus.get_fill_color())
             for rhombus in rhombi
         ])
         rhombi_and_texts = VGroup(*[
@@ -859,9 +859,9 @@ class TillingSolution2DPart(CalissonTillingScene):
 
         equation = TexMobject(*["n^2" if k % 2 == 0 else "=" for k in range(5)])
         for text, color in zip(equation[::2], RHOMBI_COLOR_SET):
-            text.highlight(color)
+            text.set_color(color)
         qed = FakeQEDSymbol(jagged_percentage = 0.1)
-        qed.scale_to_fit_height(equation.get_height())
+        qed.set_height(equation.get_height())
         conclusions = VGroup(equation, qed)
         conclusions.arrange_submobjects(RIGHT, buff = 1)
         conclusions.to_corner(RIGHT+UP)
@@ -914,7 +914,7 @@ class EndScene(Scene):
         theorem_sc = TextMobject("可利颂镶嵌定理")
         theorem_sc.scale(1.8)
         theorem_eng = TextMobject("(Calisson Tilling Theorem)")
-        theorem_eng.scale_to_fit_width(theorem_sc.get_width())
+        theorem_eng.set_width(theorem_sc.get_width())
         theorem = VGroup(theorem_sc, theorem_eng)
         theorem.arrange_submobjects(DOWN)
         theorem.to_edge(RIGHT).shift(UP)
@@ -922,7 +922,7 @@ class EndScene(Scene):
         author = TextMobject("@Solara570")
         author.scale(1.5)
         support = TextMobject("(Powered by @3Blue1Brown)")
-        support.scale_to_fit_width(author.get_width())
+        support.set_width(author.get_width())
         names = VGroup(author, support)
         names.arrange_submobjects(DOWN)
         names.to_corner(RIGHT+DOWN)
@@ -935,7 +935,7 @@ class EndScene(Scene):
 
 class Thumbnail3DPart(ThreeDScene):
     def construct(self):
-        self.set_camera_position(*DIAG_POS)
+        self.set_camera_orientation(*DIAG_POS)
         # The cover of "Mathematical Puzzles: A Connoisseur's Collection"
         tilling = CalissonTilling(
             dimension = 7,
@@ -955,12 +955,12 @@ class Thumbnail2DPart(Scene):
             rhombus, text = pair
             rhombus.set_stroke(width = 0)
             rhombus.set_fill(opacity = 1)
-            text.highlight(rhombus.get_fill_color())
+            text.set_color(rhombus.get_fill_color())
             text.set_stroke(width = 3)
             text.scale(1.5)
             pair.arrange_submobjects(RIGHT)
         pairs.arrange_submobjects(DOWN, aligned_edge = RIGHT, buff = 0.5)
-        pairs.scale_to_fit_height(6)
+        pairs.set_height(6)
         self.add(pairs)
 
 
