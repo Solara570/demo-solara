@@ -31,7 +31,7 @@ def mobs_shuffle(mobs):
 
 def tweak_color(color1, color2, alpha = 0.3):
     """Return a weighted-average of two colors."""
-    alpha = np.clip(0, 1, alpha)
+    alpha = np.clip(alpha, 0, 1)
     tweaked_rgb = alpha * color_to_rgb(color2) + (1-alpha) * color_to_rgb(color1)
     return rgb_to_color(tweaked_rgb)
 
