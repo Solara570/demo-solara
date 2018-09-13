@@ -45,10 +45,10 @@ def generate_pattern(dim):
 # POS = (phi, theta, distance)
 # To make it more convincing, the distance is set to be HUGE.
 
-DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 10000000)
-UP_POS    = (0, 0, 10000000)
-FRONT_POS = (np.pi/2., 0, 10000000)
-RIGHT_POS = (np.pi/2., np.pi/2., 10000000)
+DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 1E7)
+UP_POS    = (0, 0, 1E7)
+FRONT_POS = (np.pi/2., 0, 1E7)
+RIGHT_POS = (np.pi/2., np.pi/2., 1E7)
 
 AMM_PATTERN = np.array([
     [5, 5, 5, 4, 3],
@@ -81,7 +81,7 @@ RHOMBI_COLOR_SET = [TILE_RED, TILE_GREEN, TILE_BLUE]
 #####
 ## Mobjects
 
-class CalissonTiling(VMobject):
+class CalissonTiling3D(VMobject):
     CONFIG = {
         "dimension" : 3,
         "pattern" : None,
@@ -183,6 +183,9 @@ class CalissonTiling(VMobject):
     def get_dimension(self):
         return self.dimension
 
+    def get_unit_size(self):
+        return self.get_tile("up", (0, 0)).get_height()
+
     def get_border(self):
         return self.border
 
@@ -264,7 +267,7 @@ class Reflines(VMobject):
     }
     def __init__(self, ct_or_hexagon, **kwargs):
         digest_config(self, kwargs, locals())
-        self.mob_type = "ct" if isinstance(ct_or_hexagon, CalissonTiling) else "hexagon"
+        self.mob_type = "ct" if isinstance(ct_or_hexagon, CalissonTiling3D) else "hexagon"
         VMobject.__init__(self, **kwargs)
 
     def generate_points(self):
@@ -397,7 +400,7 @@ class CalissonTilingScene(ThreeDScene):
         self.dimensions = [5, 5, 6]
         self.patterns = [generate_pattern(dim) for dim in self.dimensions]
         self.cts = [
-            CalissonTiling(dimension = dim, pattern = pattern, enable_shuffle = True)
+            CalissonTiling3D(dimension = dim, pattern = pattern, enable_shuffle = True)
             for dim, pattern in zip(self.dimensions, self.patterns)
         ]
 
@@ -703,7 +706,7 @@ class DifferentViews(CalissonTilingScene):
 
     def add_tiling(self):
         self.set_camera_orientation(*DIAG_POS)
-        self.tiling = CalissonTiling(
+        self.tiling = CalissonTiling3D(
             dimension = 5, pattern = AMM_PATTERN, enable_fill = True
         )
         self.add(self.tiling)
@@ -806,7 +809,7 @@ class TilingSolution3DPart(CalissonTilingScene):
     def setup_tiling(self):
         self.wait(2)
         self.set_camera_orientation(*DIAG_POS)
-        self.tiling = CalissonTiling(dimension = 5, pattern = AMM_PATTERN)
+        self.tiling = CalissonTiling3D(dimension = 5, pattern = AMM_PATTERN)
         self.play(Write(self.tiling, rate_func = smooth), run_time = 3)
         self.wait(2)
         
@@ -937,7 +940,7 @@ class Thumbnail3DPart(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(*DIAG_POS)
         # The cover of "Mathematical Puzzles: A Connoisseur's Collection"
-        tiling = CalissonTiling(
+        tiling = CalissonTiling3D(
             dimension = 7,
             pattern = MPACC_PATTERN,
             enable_fill = True
