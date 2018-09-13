@@ -29,6 +29,14 @@ def mobs_shuffle(mobs):
     mobs.submobjects = list_shuffle(mobs.submobjects)
     return mobs
 
+def fit_mobject_in(content_mob, container_mob, buffer_factor = 0.6):
+    width_factor = container_mob.get_width() / content_mob.get_width()
+    height_factor = container_mob.get_height() / content_mob.get_height()
+    scale_factor = min(width_factor, height_factor)
+    content_mob.scale(scale_factor * buffer_factor)
+    content_mob.move_to(container_mob)
+    return content_mob
+
 def tweak_color(color1, color2, alpha = 0.3):
     """Return a weighted-average of two colors."""
     alpha = np.clip(alpha, 0, 1)
