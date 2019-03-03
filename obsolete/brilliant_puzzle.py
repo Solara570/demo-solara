@@ -1,5 +1,13 @@
-#!/usr/bin/env python
 #coding=utf-8
+
+"""
+This project only involves a small proportion of
+3b1b's original video on deriving Wallis product,
+which can be found at:
+ 1. https://youtu.be/8GPy_UMV-08s
+ 2. https://www.bilibili.com/video/av22808876
+Nothing more exciting to explore, thus abandoned.
+"""
 
 import numpy as np
 
