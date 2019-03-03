@@ -1,14 +1,14 @@
 #coding=utf-8
 
-from constants import *
-from utils.config_ops import digest_config
-from utils.rate_functions import *
+from manimlib.constants import *
+from manimlib.utils.config_ops import digest_config
+from manimlib.utils.rate_functions import *
 
-from animation.composition import AnimationGroup
-from animation.creation import ShowCreation, Write, FadeIn, FadeOut, GrowFromPoint
+from manimlib.animation.composition import AnimationGroup
+from manimlib.animation.creation import ShowCreation, Write, FadeIn, FadeOut, GrowFromPoint
 
-from mobject.mobject import Mobject, Group
-from mobject.types.vectorized_mobject import VMobject, VGroup
+from manimlib.mobject.mobject import Mobject, Group
+from manimlib.mobject.types.vectorized_mobject import VMobject, VGroup
 
 # self.skip_animations
 # self.force_skipping()
@@ -37,9 +37,11 @@ class BubbleAnimation(AnimationGroup):
             self, create_bubble, create_content, **kwargs
         )
 
+
 class BubbleCreation(BubbleAnimation):
     # Rename to make it clearer
     pass
+
 
 class BubbleFadeIn(BubbleAnimation):
     CONFIG = {
@@ -47,11 +49,13 @@ class BubbleFadeIn(BubbleAnimation):
         "content_animation_class"  : FadeIn,
     }
 
+
 class BubbleFadeOut(BubbleAnimation):
     CONFIG = {
         "bubble_animation_class"   : FadeOut,
         "content_animation_class"  : FadeOut,
     }
+
 
 class BubbleGrowFromPoint(BubbleAnimation):
     CONFIG = {
@@ -61,6 +65,7 @@ class BubbleGrowFromPoint(BubbleAnimation):
         "content_animation_args"   : [ORIGIN],
     }
 
+
 class BubbleShrinkToPoint(BubbleGrowFromPoint):
     CONFIG = {
         "bubble_animation_kwargs"  : {"rate_func" : lambda t: 1-smooth(t)},
@@ -68,6 +73,18 @@ class BubbleShrinkToPoint(BubbleGrowFromPoint):
     }
 
 
+class BubbleGrowFromTip(BubbleGrowFromPoint):
+    def __init__(self, bubble, **kwargs):
+        self.bubble_animation_args = [bubble.get_tip()]
+        self.content_animation_args = [bubble.get_tip()]
+        BubbleGrowFromPoint.__init__(self, bubble, **kwargs)
+
+
+class BubbleShrinkToTip(BubbleShrinkToPoint):
+    def __init__(self, bubble, **kwargs):
+        self.bubble_animation_args = [bubble.get_tip()]
+        self.content_animation_args = [bubble.get_tip()]
+        BubbleShrinkToPoint.__init__(self, bubble, **kwargs)
 
 
 
