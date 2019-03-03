@@ -3,12 +3,12 @@
 import random
 import itertools as it
 
-from constants import *
-from mobject.types.vectorized_mobject import VMobject, VGroup
-from mobject.svg.tex_mobject import TexMobject
-from mobject.geometry import Rectangle, Square, Annulus, RegularPolygon
-from once_useful_constructs.fractals import fractalify
-from utils.space_ops import get_norm
+from manimlib.constants import *
+from manimlib.mobject.types.vectorized_mobject import VMobject, VGroup
+from manimlib.mobject.svg.tex_mobject import TexMobject
+from manimlib.mobject.geometry import Rectangle, Square, Annulus, RegularPolygon
+from manimlib.once_useful_constructs.fractals import fractalify
+from manimlib.utils.space_ops import get_norm
 
 # self.skip_animations
 # self.force_skipping()

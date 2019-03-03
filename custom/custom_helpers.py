@@ -3,9 +3,9 @@
 import numpy as np
 import random
 
-from constants import *
-from mobject.types.vectorized_mobject import VGroup
-from utils.color import rgb_to_color, color_to_rgb
+from manimlib.constants import *
+from manimlib.mobject.types.vectorized_mobject import VGroup
+from manimlib.utils.color import rgb_to_color, color_to_rgb
 
 
 def list_shuffle(l):
@@ -37,17 +37,16 @@ def fit_mobject_in(content_mob, container_mob, buffer_factor = 0.6):
     content_mob.move_to(container_mob)
     return content_mob
 
-def tweak_color(color1, color2, alpha = 0.3):
+def tweak_color(color1, color2, weight = 0.3):
     """Return a weighted-average of two colors."""
-    alpha = np.clip(alpha, 0, 1)
-    tweaked_rgb = alpha * color_to_rgb(color2) + (1-alpha) * color_to_rgb(color1)
+    weight = np.clip(weight, 0, 1)
+    tweaked_rgb = weight * color_to_rgb(color2) + (1-weight) * color_to_rgb(color1)
     return rgb_to_color(tweaked_rgb)
 
-def brighten(color, alpha = 0.3):
-    return tweak_color(color, WHITE, alpha)
+def brighten(color, weight = 0.3):
+    return tweak_color(color, WHITE, weight)
 
-def darken(color, alpha = 0.3):
-    return tweak_color(color, BLACK, alpha)
-
+def darken(color, weight = 0.3):
+    return tweak_color(color, BLACK, weight)
 
 
