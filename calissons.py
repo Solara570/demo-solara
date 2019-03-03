@@ -2,81 +2,31 @@
 
 import numpy as np
 import itertools as it
-from constants import *
-from utils.bezier import interpolate
-from utils.config_ops import digest_config
-from utils.rate_functions import *
+from manimlib.constants import *
+from manimlib.utils.bezier import interpolate
+from manimlib.utils.config_ops import digest_config
+from manimlib.utils.rate_functions import *
 
-from animation.animation import Animation
-from animation.composition import AnimationGroup
-from animation.creation import ShowCreation, Write, FadeIn, FadeOut, DrawBorderThenFill, GrowFromCenter
-from animation.transform import Transform, MoveToTarget, ApplyMethod
-from animation.indication import Indicate
-from mobject.types.vectorized_mobject import VMobject
-from mobject.svg.tex_mobject import TexMobject, TextMobject
-from mobject.svg.brace import Brace
-from mobject.geometry import Square, Line, DashedLine
-from mobject.shape_matchers import SurroundingRectangle
-from scene.scene import Scene
-from scene.three_d_scene import ThreeDScene
+from manimlib.animation.animation import Animation
+from manimlib.animation.composition import AnimationGroup
+from manimlib.animation.creation import ShowCreation, Write, FadeIn, FadeOut, DrawBorderThenFill, GrowFromCenter
+from manimlib.animation.transform import Transform, MoveToTarget, ApplyMethod
+from manimlib.animation.indication import Indicate
+from manimlib.mobject.types.vectorized_mobject import VMobject
+from manimlib.mobject.svg.tex_mobject import TexMobject, TextMobject
+from manimlib.mobject.svg.brace import Brace
+from manimlib.mobject.geometry import Square, Line, DashedLine
+from manimlib.mobject.shape_matchers import SurroundingRectangle
+from manimlib.scene.scene import Scene
+from manimlib.scene.three_d_scene import ThreeDScene
 
 from custom.custom_helpers import *
 from custom.custom_mobjects import FakeQEDSymbol
+from calissons_constants import *
 
 # self.skip_animations
 # self.force_skipping()
 # self.revert_to_original_skipping_status()
-
-#####
-## Functions
-
-def generate_pattern(dim):
-    """Generate a random pattern of Calisson tiling with a given dimension ``dim``."""
-    pattern = np.random.randint(dim + 1, size = (dim, dim))
-    # Try to make the tiling more balanced...
-    for k in random.sample(range(dim), max(1, dim // 3)):
-        pattern.T[k].sort()
-    pattern.sort()
-    pattern.T.sort()
-    return pattern[-1::-1, -1::-1]
-
-#####
-## Constants
-# POS = (phi, theta, distance)
-# To make it more convincing, the distance is set to be HUGE.
-
-DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 1E7)
-UP_POS    = (0, 0, 1E7)
-FRONT_POS = (np.pi/2., 0, 1E7)
-RIGHT_POS = (np.pi/2., np.pi/2., 1E7)
-
-AMM_PATTERN = np.array([
-    [5, 5, 5, 4, 3],
-    [5, 5, 5, 1, 0],
-    [5, 5, 1, 0, 0],
-    [5, 5, 1, 0, 0],
-    [3, 3, 0, 0, 0],
-])
-
-MPACC_PATTERN = np.array([
-    [7, 7, 7, 7, 6, 4, 3],
-    [6, 6, 5, 5, 5, 2, 1],
-    [6, 6, 4, 3, 2, 1, 0],
-    [6, 5, 3, 2, 1, 1, 0],
-    [5, 3, 2, 1, 1, 0, 0],
-    [3, 2, 2, 1, 0, 0, 0],
-    [3, 1, 0, 0, 0, 0, 0],
-])
-
-DARK_GRAY = "#404040"
-DARK_GREY = DARK_GRAY
-LIGHT_GRAY = "#B0B0B0"
-LIGHT_GREY = LIGHT_GRAY
-
-TILE_RED, TILE_GREEN, TILE_BLUE = map(darken, [RED, GREEN, BLUE])
-TILE_COLOR_SET = [TILE_GREEN, TILE_RED, TILE_BLUE]
-RHOMBI_COLOR_SET = [TILE_RED, TILE_GREEN, TILE_BLUE]
-
 
 #####
 ## Mobjects
@@ -91,7 +41,6 @@ class CalissonTiling3D(VMobject):
         "tile_colors" : TILE_COLOR_SET,  # UP-DOWN, OUT-IN, RIGHT-LEFT
         "fill_opacity" : 1,
         "tile_config": {
-            "side_length"  : 1,
             "stroke_width" : 5,
             "stroke_color" : WHITE,
         },
@@ -112,7 +61,7 @@ class CalissonTiling3D(VMobject):
         self.adjust_size()
         
     def init_tiles(self):
-        out_std = Square(**self.tile_config)
+        out_std = Square(side_length = 1, **self.tile_config)
         out_std.shift((RIGHT+UP) / 2.)
         dim = self.dimension
         out_tiles = VGroup()
@@ -210,7 +159,17 @@ class CalissonTiling3D(VMobject):
 
     def get_tile_index(self, position):
         i, j = position
-        return i * self.dimension + j
+        return i * self.get_dimension() + j
+
+    def remove_border(self):
+        self.remove(self.get_border())
+        return self
+
+    def remove_tile(self, direction, position):
+        tile_set = self.get_tile_set(direction)
+        tile = self.get_tile(direction, position)
+        tile_set.remove(tile)
+        return self
 
     # Color filling
     def set_tile_fill(self, direction, position, opacity):
@@ -254,7 +213,7 @@ class CalissonTiling3D(VMobject):
 
     def unfill_all_tiles(self):
         self.set_all_tiles_fill(0)
-        return self       
+        return self
 
 
 class Reflines(VMobject):
@@ -391,6 +350,21 @@ class TilesGrow(Transform):
             tile.set_stroke(width = 0)
         Transform.__init__(self, source_tiles, target_tiles, **kwargs)
 
+
+class TilesShrink(Transform):
+    CONFIG = {
+        "submobject_mode" : "lagged_start",
+        "lag_factor" : 3,
+        "run_time" : 3,
+    }
+    def __init__(self, ct_mob, **kwargs):
+        digest_config(self, kwargs, locals())
+        source_tiles = mobs_shuffle(ct_mob.get_all_tiles())
+        target_tiles = source_tiles.copy()
+        for tile in target_tiles:
+            tile.scale_in_place(0)
+            tile.set_stroke(width = 0)
+        Transform.__init__(self, source_tiles, target_tiles, **kwargs)
 
 #####
 ## Main scenes
@@ -965,10 +939,6 @@ class Thumbnail2DPart(Scene):
         pairs.arrange_submobjects(DOWN, aligned_edge = RIGHT, buff = 0.5)
         pairs.set_height(6)
         self.add(pairs)
-
-
-
-
 
 
 
