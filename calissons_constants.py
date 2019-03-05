@@ -2,7 +2,7 @@ import numpy as np
 from custom.custom_helpers import *
 
 #####
-## Functions
+## General Functions
 
 def generate_pattern(dim):
     """Generate a random pattern of Calisson tiling with a given dimension ``dim``."""
@@ -14,14 +14,6 @@ def generate_pattern(dim):
     pattern.T.sort()
     return pattern[-1::-1, -1::-1]
 
-def get_lower_bounding_array(*arrays):
-    dim = np.shape(arrays[0])[0]
-    lb_array = np.zeros((dim, dim), dtype = int)
-    for i in range(dim):
-        for j in range(dim):
-            lb_array[i][j] = min(*[arr[i][j] for arr in arrays])
-    return lb_array
-
 #####
 ## Constants
 # POS = (phi, theta, distance)
@@ -31,6 +23,13 @@ DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 1E7)
 UP_POS    = (0, 0, 1E7)
 FRONT_POS = (np.pi/2., 0, 1E7)
 RIGHT_POS = (np.pi/2., np.pi/2., 1E7)
+
+EG_4D_PATTERN = np.array([
+    [4, 3, 2, 1],
+    [4, 3, 1, 0],
+    [4, 3, 1, 0],
+    [3, 2, 0, 0],
+])
 
 AMM_PATTERN = np.array([
     [5, 5, 5, 4, 3],
@@ -50,7 +49,19 @@ MPACC_PATTERN = np.array([
     [3, 1, 0, 0, 0, 0, 0],
 ])
 
-BORDER_ANCHORS_COORDINATES = [
+
+#####
+## For CountingsDoNotChange Scene
+
+def get_lower_bounding_array(*arrays):
+    dim = np.shape(arrays[0])[0]
+    lb_array = np.zeros((dim, dim), dtype = int)
+    for i in range(dim):
+        for j in range(dim):
+            lb_array[i][j] = min(*[arr[i][j] for arr in arrays])
+    return lb_array
+
+BORDER_ACS = [
     [9, 0], [8, 0], [8, -3], [7, -3], [7, -5], [6, -5], [6, -6], [5, -6],
     [5, -7], [1, -7], [1, -8], [0, -8], [0, -9], [-6, -3], [-6, 0], [-8, 2],
     [-8, 4], [-9, 5], [-9, 9], [-8, 8], [-5, 8], [-4, 7], [-2, 7], [-1, 6],
@@ -122,6 +133,86 @@ BOUNDING_VALUES = get_lower_bounding_array(
     FRONT_BOUNDING_VALUES, RIGHT_BOUNDING_VALUES, UP_BOUNDING_VALUES
 )
 
+
+#####
+## For AreTheseRegionsTilable Scene
+
+def extended_array(array, n):
+    """ Extend an array to a designated length. """
+    assert (n > 0)
+    length = len(array)
+    if length >= n:
+        return array
+    else:
+        new_array = []
+        quotient = n // length
+        residue = n % length
+        for i, element in enumerate(array):
+            repeat_times = (quotient + 1) if i < residue else quotient
+            new_array.extend([element] * repeat_times)
+        return new_array
+
+C3_ACS = [
+    [4, 0], [5, -1], [5, -4], [1, -4], [-2, -1], [-2, 1],
+    [0, 1], [-1, 2], [-3, 2], [-3, -1], [0, -4], [-1, -4],
+    [-4, -1], [-4, 3], [-1, 3], [1, 1], [1, -1], [2, -1],
+    [2, 1], [-1, 4], [-4, 4], [-4, 5], [-1, 5], [3, 1],
+    [3, -2], [1, -2], [-1, 0], [-1, -1], [1, -3], [4, -3],
+    [4, 0]
+]
+
+R1_ACS = [
+    [2, 0], [2, -1], [3, -2], [4, -2], [4, -3], [3, -3],
+    [3, -4], [2, -4], [1, -3], [2, -3], [2, -2], [0, -2],
+    [0, -3], [-2, -3], [-2, -4], [-3, -4], [-3, -3], [-4, -2],
+    [-3, -2], [-3, -1], [0, -1], [0, 0], [-2, 0], [-4, 2],
+    [-4, 3], [-2, 3], [-2, 4], [-1, 3], [0, 3], [2, 1],
+    [3, 1], [2, 2], [2, 4], [3, 4], [3, 3], [4, 2],
+    [4, 0], [2, 0]
+]
+
+R2_ACS = [
+    [2, 0], [3, -1], [2, -1], [2, -2], [1, -2], [1, -4],
+    [-2, -4], [-4, -2], [-4, 2], [-3, 2], [-4, 3], [-4, 4],
+    [-3, 4], [-2, 3], [-2, 5], [-1, 5], [0, 4], [2, 4],
+    [4, 2], [1, 2], [1, 1], [0, 2], [0, 3], [-1, 4],
+    [-1, 2], [-2, 2], [-2, 1], [-3, 1], [-3, 0], [-2, -1],
+    [-3, -1], [-3, -2], [-2, -3], [0, -3], [-1, -2], [-1, -1],
+    [0, -2], [0, -1], [1, -1], [-1, 1], [0, 1], [1, 0], [2, 0],
+]
+
+AVATAR_LH = [
+    [3, 0], [4, 0], [5, -1], [4, -1], [4, -2], [3, -2], [3, -3],
+    [2, -2], [1, -2], [1, -4], [2, -4], [2, -3], [3, -4], [3, -6],
+    [2, -6], [1, -5], [1, -6], [0, -6], [0, -5], [-1, -4], [-1, -5],
+    [-2, -4], [-3, -4], [-3, -3], [-2, -3], [-2, -1],
+]
+AVATAR_RH = [[-x, -y] for x, y in AVATAR_LH]
+AVATAR_ACS = AVATAR_LH + AVATAR_RH + [[3, 0]]
+
+SNOWFLAKE_LH = [
+    [3, 0], [4, -1], [5, -1], [5, -2], [6, -3], [5, -3], [5, -4],
+    [4, -3], [3, -3], [3, -4], [4, -5], [3, -5], [3, -6], [2, -5],
+    [1, -5], [1, -4], [0, -3], [-1, -3], [-1, -4], [-2, -3], [-3, -3],
+    [-3, -2], [-4, -1], [-3, -1],
+
+]
+SNOWFLAKE_RH = [[-x, -y] for x, y in SNOWFLAKE_LH]
+SNOWFLAKE_ACS = SNOWFLAKE_LH + SNOWFLAKE_RH + [[3, 0]]
+
+ACS_LIST = [C3_ACS, AVATAR_ACS, SNOWFLAKE_ACS, R1_ACS, R2_ACS]
+
+MAX_LENGTH = max(list(map(len, ACS_LIST)))
+ALL_ACS = [extended_array(acs, MAX_LENGTH) for acs in ACS_LIST]
+
+ALL_SETTINGS = [
+    (SNOWFLAKE_ACS, BLUE, [BLUE_D, BLUE_B], UL),
+    (R1_ACS, GREEN, [GREEN_B, GREEN_D], RIGHT),
+    (AVATAR_ACS, YELLOW, [ORANGE, GREEN, PURPLE, WHITE], UR),
+    (R2_ACS, GOLD, [GOLD_D, GOLD_B], DR),
+    (C3_ACS, RED, [MAROON_D, MAROON_B], LEFT)
+]
+
 #####
 ## Colors
 
@@ -133,5 +224,6 @@ LIGHT_GREY = LIGHT_GRAY
 TILE_RED, TILE_GREEN, TILE_BLUE = map(darken, [RED, GREEN, BLUE])
 TILE_COLOR_SET = [TILE_GREEN, TILE_RED, TILE_BLUE]
 RHOMBI_COLOR_SET = [TILE_RED, TILE_GREEN, TILE_BLUE]
+L_GRADIENT_COLORS = [BLUE, GREEN, RED]
 
 
