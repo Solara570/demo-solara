@@ -1,5 +1,10 @@
 #coding=utf-8
 
+########################################################
+#    Part 1 - https://zhuanlan.zhihu.com/p/34313702    #
+#    Part 2 - https://zhuanlan.zhihu.com/p/34600273    #
+########################################################
+
 import random
 import numpy as np
 from scipy.special import comb
@@ -24,7 +29,7 @@ from mobject.number_line import NumberLine
 from mobject.coordinate_systems import Axes
 from scene.scene import Scene
 
-from pi_day_2018 import WallisRectangles
+from articles.pi_day_2018 import WallisRectangles
 
 # self.skip_animations
 # self.force_skipping()
