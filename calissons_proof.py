@@ -3,6 +3,7 @@
 from big_ol_pile_of_manim_imports import *
 from custom.custom_animations import *
 from custom.custom_helpers import *
+from custom.custom_mobjects import *
 from calissons import *
 from calissons_constants import *
 
@@ -18,6 +19,8 @@ CB_LIGHT = "#B69B4C"
 
 #####
 ## Methods
+def are_close(x, y, thres = 1E-6):
+    return abs(x - y) < thres
 
 def sort_coords(coords_list):
     # First coord_x, then coord_y
@@ -37,7 +40,7 @@ def get_ct_3d_xoy_projection(ct_3d, ct_grid = None):
         ct_2d.scale(scale_factor)
     # Set the correct orientation
     set_projection_orientation(ct_2d)
-    # Project onto the xOy plane
+    # Project onto the xoy plane
     ct_2d.apply_function(lambda p: [p[0], p[1], 0])
     ct_2d.set_shade_in_3d(False)
     return ct_2d
@@ -62,14 +65,14 @@ class Scatter(MoveToTarget):
 #####
 ## Mobjects
 
-class CalissonTilesCounter(VMobject):
+class TilesCounter(VMobject):
     CONFIG = {
         "tile_types"  : [RRhombus, HRhombus, LRhombus],
         "tile_colors" : [TILE_RED, TILE_GREEN, TILE_BLUE],
         "tile_stroke_width" : 2,
         "tile_stroke_color" : WHITE,
         "tile_fill_opacity" : 1,
-        "height" : 6,
+        "height" : None,
         "matching_direction" : RIGHT,
         "matching_buff" : 1,
         "counter_buff" : 0.8,
@@ -92,22 +95,20 @@ class CalissonTilesCounter(VMobject):
             VGroup(tile_type(), TexMobject("\\times %s" % str(num)))
             for tile_type, num in zip(self.tile_types, self. tile_nums)
         ])
-        for pair in pairs:
+        for k, pair in enumerate(pairs):
             tile, text = pair
             tile.set_stroke(width = self.tile_stroke_width, color = self.tile_stroke_color)
             tile.set_fill(opacity = self.tile_fill_opacity)
-            text.set_color(tile.get_fill_color())
-            text.scale(1.5)
+            text.set_color(self.tile_colors[k])
+            text.scale(1.8)
             pair.arrange_submobjects(RIGHT)
         pairs.arrange_submobjects(
             # DOWN, index_of_submobject_to_align = 0, aligned_edge = RIGHT, buff = self.counter_buff
             DOWN, index_of_submobject_to_align = 1, aligned_edge = LEFT, buff = self.counter_buff
         )
-        if self.matching_tiling is None:
-            height = self.height
-        else:
-            height = self.matching_tiling.get_height() * 0.8
-        pairs.set_height(height)
+        if self.matching_tiling is not None and self.height is None:
+            self.height = self.matching_tiling.get_height() * 0.8
+        pairs.set_height(self.height)
         if self.matching_tiling is not None:
             pairs.next_to(
                 self.matching_tiling, 
@@ -117,15 +118,32 @@ class CalissonTilesCounter(VMobject):
         self.add(pairs)
         self.pairs = pairs
 
+    def get_pairs(self):
+        return self.pairs
+
     def get_tiles(self):
         return VGroup(*[self.pairs[k][0] for k in range(3)])
 
-    def get_texts(self):
-        return VGroup(*[self.pairs[k][1] for k in range(3)])
-    
+    def get_mult_signs(self):
+        return VGroup(*[self.pairs[k][1][0] for k in range(3)])
+
     def get_nums(self):
-        texts = self.get_texts()
-        return VGroup(*[texts[k][1:] for k in range(3)])
+        return VGroup(*[self.pairs[k][1][1:] for k in range(3)])
+
+    def get_pair(self, n):
+        return self.get_pairs()[n]
+
+    def get_tile(self, n):
+        return self.get_tiles()[n]
+
+    def get_mult_sign(self, n):
+        return self.get_mult_signs()[n]
+
+    def get_num(self, n):
+        return self.get_nums()[n]
+
+    def get_pair_elements(self, n):
+        return VGroup(self.get_tile(n), self.get_mult_sign(n), self.get_num(n))
 
 
 class CalissonTilingGrid(VMobject):
@@ -291,7 +309,7 @@ class CalissonTilingGrid(VMobject):
         dot_pj = np.dot(point - grid_center, basis_y)
         A = np.array([[dot_ii, dot_ij], [dot_ij, dot_jj]])
         b = np.array([dot_pi, dot_pj])
-        x, y = np.around(np.linalg.solve(A, b), decimals = 5)
+        x, y = np.around(np.linalg.solve(A, b), decimals = 6)
         return x, y
 
     def is_valid_grid_point(self, coords):
@@ -371,6 +389,9 @@ class CalissonTilingGrid(VMobject):
         vmob_copy.submobjects = mobs
         return vmob_copy
 
+    def get_randomized_point_copy(self):
+        return self.get_randomized_copy(self.get_grid_points())
+
     def get_randomized_line_copy(self):
         return self.get_randomized_copy(self.get_grid_lines())
 
@@ -398,18 +419,30 @@ class CalissonTiling2D(CalissonTiling3D):
     def generate_points(self):
         self.ct_2d = get_ct_3d_xoy_projection(self.ct_3d, self.ct_grid)
         self.border, self.tiles = self.ct_2d
-        self.add(self.border, self.tiles)
+        self.add(self.ct_grid, self.border, self.tiles)
         self.tiles_coords = list()
-        self.tiles_types = list()
+        self.dumbbells_coords = list()
         for tile_set in self.tiles:
             tile_set_coords_list = [self.get_tile_coords(tile) for tile in tile_set]
             self.tiles_coords.append(tile_set_coords_list)
+            dumbbell_set_coords = [self.get_tile_bells_center_coords(tile) for tile in tile_set]
+            self.dumbbells_coords.append(dumbbell_set_coords)
+
+    def get_all_tiles(self):
+        return self.tiles
 
     def get_all_tile_types(self):
         return ["out", "up", "right"]
 
     def get_all_tile_colors(self):
         return self.tile_colors
+
+    def get_all_tile_coords(self):
+        all_tile_coords = list()
+        for tile_set in self.get_all_tiles():
+            for tile in tile_set:
+                all_tile_coords.append(self.get_tile_coords(tile))
+        return tuple(all_tile_coords)
 
     def get_tile_type(self, tile):
         """
@@ -421,10 +454,7 @@ class CalissonTiling2D(CalissonTiling3D):
             c) "right", LRhombus, BLUE color: (x, y), (x, y+1), (x+1, y), (x+1, y+1);
                                               0 -> Upright -> Upleft -> Upright
         """
-        def are_close(x, y, thres = 1E-6):
-            return abs(x - y) < thres
         all_tile_types = self.get_all_tile_types()
-        thres = 1E-6
         pt0, pt1, pt2, pt3 = self.get_tile_coords(tile)
         x1, y1 = pt1
         x2, y2 = pt2
@@ -453,9 +483,11 @@ class CalissonTiling2D(CalissonTiling3D):
                 if all([(x, y) in tile_coords for (x, y) in func_input]):
                     avail_tiles.add(tile)
         return avail_tiles
-
-    def get_tile_colors(self):
-        return self.tile_colors
+    
+    def get_dumbbell_by_tile_coords(self, tile_coords):
+        tile = self.get_tiles_by_coords(tile_coords)[0]
+        dumbbell = self.get_dumbbell_by_tile(tile)
+        return dumbbell
 
     def get_tile_color(self, tile, use_current_color = True):
         if use_current_color:
@@ -469,7 +501,7 @@ class CalissonTiling2D(CalissonTiling3D):
     def get_tile_coords(self, tile):
         coords = [self.ct_grid.point_to_coords(point) for point in tile.points[:-1:3]]
         sort_coords(coords)
-        return coords
+        return tuple(coords)
 
     def get_tile_center_of_mass(self, tile):
         tile_coords = self.get_tile_coords(tile)
@@ -477,7 +509,7 @@ class CalissonTiling2D(CalissonTiling3D):
         center_of_mass = np.average(tile_anchors)
         return center_of_mass
 
-    def get_tile_centers_of_triangles(self, tile):
+    def get_tile_bells_center_points(self, tile):
         tile_coords = self.get_tile_coords(tile)
         tile_type = self.get_tile_type(tile)
         all_tile_types = self.get_all_tile_types()
@@ -485,20 +517,21 @@ class CalissonTiling2D(CalissonTiling3D):
         if tile_type == all_tile_types[0]:
             pt0_indices = [0, 2, 3]
             pt1_indices = [0, 1, 3]
-        elif tile_type == all_tile_types[1]:
-            pt0_indices = [1, 2, 3]
-            pt1_indices = [0, 1, 2]
         else:
             pt0_indices = [0, 1, 2]
             pt1_indices = [1, 2, 3]
-        centers_of_triangles = tuple([
+        bells_center_points = tuple([
             np.mean(np.array([tile_anchors[i] for i in pt0_indices]), axis = 0),
             np.mean(np.array([tile_anchors[j] for j in pt1_indices]), axis = 0),
         ])
-        return centers_of_triangles
+        return bells_center_points
+
+    def get_tile_bells_center_coords(self, tile):
+        bells_center_points = self.get_tile_bells_center_points(tile)
+        return tuple(map(self.ct_grid.point_to_coords, bells_center_points))
 
     def generate_tile_dumbbell(self, tile, color = None):
-        pt0, pt1 = centers_of_triangles = self.get_tile_centers_of_triangles(tile)
+        pt0, pt1 = bells_center_points = self.get_tile_bells_center_points(tile)
         kwargs = copy.deepcopy(self.dumbbell_config)
         kwargs.update({"color" : self.get_tile_color(tile) if color is None else color})
         dumbbell = Dumbbell(pt0, pt1, **kwargs)
@@ -511,26 +544,34 @@ class CalissonTiling2D(CalissonTiling3D):
             for tile in tile_set:
                 dumbbell_set.add(self.generate_tile_dumbbell(tile))
             self.dumbbells.add(dumbbell_set)
+        return self.dumbbells
 
     def get_dumbbell_by_tile(self, tile):
         for tile_set, dumbbell_set in zip(self.get_all_tiles(), self.get_all_dumbbells()):
             if tile in tile_set.submobjects:
                 k = tile_set.submobjects.index(tile)
                 return dumbbell_set.submobjects[k]
-        return VMobject()
+        raise Exception("Dumbbell not found")
 
     def get_tile_by_dumbbell(self, dumbbell):
         for dumbbell_set, tile_set in zip(self.get_all_dumbbells(), self.get_all_tiles()):
             if dumbbell in dumbbell_set.submobjects:
                 k = dumbbell_set.submobjects.index(dumbbell)
                 return tile_set.submobjects[k]
-        return VMobject()
+        raise Exception("Tile not found")
 
     def get_all_dumbbells(self):
+        if not hasattr(self, "dumbbells"):
+            self.dumbbells = self.generate_all_dumbbells()
         return self.dumbbells
 
     def get_dimension(self):
         return self.ct_3d.get_dimension()
+
+    def get_random_tile(self):
+        i = random.randint(0, 2)
+        j = random.randint(0, self.get_dimension()**2-1)
+        return self.tiles[i][j]
 
 
 class Dumbbell(VMobject):
@@ -578,6 +619,142 @@ class Dumbbell(VMobject):
 
     def get_stem(self):
         return self.stem
+
+##### TODO: Implement DBLabel
+class DBLabel(VMobject):
+    CONFIG = {
+        "color" : YELLOW,   # PINK,
+        "text" : "A",       # "B",
+    }
+    pass
+
+
+##### TODO: Should be an pure object instead?
+class CalissonTilingDifference(CalissonTilingGrid):
+    def __init__(self, ct_2d_A, ct_2d_B, **kwargs):
+        self.ct_2d_A = ct_2d_A
+        self.ct_2d_B = ct_2d_B
+        CalissonTilingGrid.__init__(self, **kwargs)
+
+    def get_tiles_coords(self):
+        return tuple([ct.get_all_tile_coords() for ct in [self.ct_2d_A, self.ct_2d_B]])
+
+    def get_same_tiles_coords(self):
+        all_tiles_coords_A, all_tiles_coords_B = self.get_tiles_coords()
+        return tuple(set(all_tiles_coords_A) & set(all_tiles_coords_B))
+
+    def get_same_tiles(self):
+        same_tiles_coords = self.get_same_tiles_coords()
+        same_tiles_A = VGroup(*[
+            self.ct_2d_A.get_tiles_by_coords(tile_coords) for tile_coords in same_tiles_coords
+        ])
+        same_tiles_B =VGroup(*[
+            self.ct_2d_B.get_tiles_by_coords(tile_coords) for tile_coords in same_tiles_coords
+        ])
+        return VGroup(same_tiles_A, same_tiles_B)
+
+    def get_same_dumbbells(self):
+        same_tiles_coords = self.get_same_tiles_coords()
+        same_dumbbells_A = VGroup(*[
+            self.ct_2d_A.get_dumbbell_by_tile_coords(tile_coords) for tile_coords in same_tiles_coords
+        ])
+        same_dumbbells_B = VGroup(*[
+            self.ct_2d_B.get_dumbbell_by_tile_coords(tile_coords) for tile_coords in same_tiles_coords
+        ])
+        return VGroup(same_dumbbells_A, same_dumbbells_B)
+
+    def get_different_tiles_coords(self):
+        all_tiles_coords_A, all_tiles_coords_B = self.get_tiles_coords()
+        same_tiles_coords = self.get_same_tiles_coords()
+        diff_tiles_coords_A = tuple(set(all_tiles_coords_A) - set(same_tiles_coords))
+        diff_tiles_coords_B = tuple(set(all_tiles_coords_B) - set(same_tiles_coords))
+        return diff_tiles_coords_A, diff_tiles_coords_B
+
+    def get_different_tiles(self):
+        diff_tiles_coords_A, diff_tiles_coords_B = self.get_different_tiles_coords()
+        diff_tiles_A = VGroup(*[
+            self.ct_2d_A.get_tiles_by_coords(tile_coords) for tile_coords in diff_tiles_coords_A
+        ])
+        diff_tiles_B = VGroup(*[
+            self.ct_2d_B.get_tiles_by_coords(tile_coords) for tile_coords in diff_tiles_coords_B
+        ])
+        return VGroup(diff_tiles_A, diff_tiles_B)
+
+    def get_different_dumbbells(self):
+        diff_tiles_coords_A, diff_tiles_coords_B = self.get_different_tiles_coords()
+        diff_dumbbells_A = VGroup(*[
+            self.ct_2d_A.get_dumbbell_by_tile_coords(tile_coords) for tile_coords in diff_tiles_coords_A
+        ])
+        diff_dumbbells_B = VGroup(*[
+            self.ct_2d_B.get_dumbbell_by_tile_coords(tile_coords) for tile_coords in diff_tiles_coords_B
+        ])
+        return VGroup(diff_dumbbells_A, diff_dumbbells_B)
+
+    def get_loops_tiles_coords(self):
+        def transfer_element(element, src_array, dst_array):
+            dst_array.append(element)
+            src_array.remove(element)
+
+        def is_sharing_a_triangle(vals):
+            tile_coords_A, tile_coords_B = vals
+            return (len(set(tuple(tile_coords_A)) & set(tuple(tile_coords_B))) == 3)
+
+        def find_next_tile_coords(prev_tile_coords, all_tile_coords):
+            array = [(prev_tile_coords, tile_coords) for tile_coords in all_tile_coords]
+            results = list(filter(is_sharing_a_triangle, array))
+            return results[0][-1] if len(results) > 0 else None
+
+        def move_first_element_to_last(array):
+            array.append(array.pop(0))
+
+        diff_tiles_coords_A, diff_tiles_coords_B = list(map(list, self.get_different_tiles_coords()))
+        all_diff_tiles_coords = diff_tiles_coords_A + diff_tiles_coords_B
+        loops_tiles_coords = list()
+        new_loop_tiles_coords = list()
+        # Forming new loops until all elements in 'all_diff_tiles_coords' are extracted.
+        while (len(all_diff_tiles_coords) > 0):
+            # Start a new loop
+            if len(new_loop_tiles_coords) == 0:
+                prev_tile_coords = all_diff_tiles_coords[0]
+                transfer_element(prev_tile_coords, all_diff_tiles_coords, new_loop_tiles_coords)
+            # Keep appending new 'tile_coords' to this new loop.
+            next_tile_coords = find_next_tile_coords(prev_tile_coords, all_diff_tiles_coords)
+            while (next_tile_coords is not None):
+                transfer_element(next_tile_coords, all_diff_tiles_coords, new_loop_tiles_coords)
+                prev_tile_coords = next_tile_coords
+                next_tile_coords = find_next_tile_coords(prev_tile_coords, all_diff_tiles_coords)
+            # Make sure all new loops start with a tile in 'self.ct_2d_A'.
+            if new_loop_tiles_coords[0] in diff_tiles_coords_B:
+                move_first_element_to_last(new_loop_tiles_coords)
+            loops_tiles_coords.append(tuple(new_loop_tiles_coords))
+            new_loop_tiles_coords = list()
+        return tuple(loops_tiles_coords)
+
+    def get_loops_tiles(self):
+        loops_tiles = VGroup()
+        loops_tiles_coords = self.get_loops_tiles_coords()
+        for loop_tiles_coords in loops_tiles_coords:
+            new_loop_tiles = VGroup()
+            for k, tile_coords in enumerate(loop_tiles_coords):
+                if (k % 2 == 0):    # This tile is in 'self.ct_2d_A'
+                    new_loop_tiles.add(self.ct_2d_A.get_tiles_by_coords(tile_coords))
+                else:               # This tile is in 'self.ct_2d_B'
+                    new_loop_tiles.add(self.ct_2d_B.get_tiles_by_coords(tile_coords))
+            loops_tiles.add(new_loop_tiles)
+        return loops_tiles
+
+    def get_loops_dumbbells(self):
+        loops_dumbbells = VGroup()
+        loops_tiles_coords = self.get_loops_tiles_coords()
+        for loop_tiles_coords in loops_tiles_coords:
+            new_loop_dumbbells = VGroup()
+            for k, tile_coords in enumerate(loop_tiles_coords):
+                if (k % 2 == 0):    # This dumbbell is in 'self.ct_2d_A'
+                    new_loop_dumbbells.add(self.ct_2d_A.get_dumbbell_by_tile_coords(tile_coords))
+                else:               # This dumbbell is in 'self.ct_2d_B'
+                    new_loop_dumbbells.add(self.ct_2d_B.get_dumbbell_by_tile_coords(tile_coords))
+            loops_dumbbells.add(new_loop_dumbbells)
+        return loops_dumbbells
 
 
 class Sqrt2PWW(VMobject):
@@ -665,6 +842,59 @@ class Tangram(VMobject):
         return self.border
 
 
+class SudokuBoard(VGroup):
+    CONFIG = {
+        "n" : 3,
+        "height" : 6,
+    }
+    def generate_points(self):
+        n = self.n
+        self.small_squares = VGroup(*[
+            Square(side_length = 1, stroke_color = GREY, stroke_width = 3)
+            for k in range(n**4)
+        ])
+        self.small_squares.arrange_submobjects_in_grid(n**2, n**2, buff = 0)
+        self.big_squares = VGroup(*[
+            Square(side_length = self.n, stroke_color = WHITE, stroke_width = 8)
+            for k in range(n**2)
+        ])
+        self.big_squares.arrange_submobjects_in_grid(n, n, buff = 0)
+        self.entries = dict()
+        self.add(self.small_squares, self.big_squares)
+        self.center()
+        self.set_height(self.height)
+
+    def add_entry(self, x, y, entry):
+        # x: row index (up->down, 0->8); y: column index (left->right, 0->8)
+        text = TexMobject(str(entry))
+        square = self.get_square(x, y)
+        fit_mobject_in(text, square)
+        self.entries[(x, y)] = text
+        self.add(text)
+
+    def add_entries(self, entries):
+        for (x, y), entry in entries:
+            self.add_entry(x, y, entry)
+
+    def get_square(self, x, y):
+        square_index = (self.n**2) * x + y
+        return self.small_squares[square_index]
+
+    def get_square_critical_point(self, x, y, direction):
+        square = self.get_square(x, y)
+        return square.get_critical_point(direction)
+
+    def get_entry(self, x, y):
+        return self.entries[(x, y)]
+
+    def get_elimination_arrow(self, x1, y1, x2, y2, direction, **arrow_kwargs):
+        nudge = self.get_square(0, 0).get_height() * 0.05 * (-direction)
+        start_point = self.get_square_critical_point(x1, y1, direction) + nudge
+        end_point = self.get_square_critical_point(x2, y2, direction) + nudge
+        arrow = Arrow(start_point, end_point, buff = 0, **arrow_kwargs)
+        return arrow
+
+
 #####
 ## Main Scenes
 
@@ -712,9 +942,9 @@ class IntroToMathematicalProofs(Scene):
         VGroup(happy_face, sad_face).to_corner(DR)
         face_bubble = ThoughtBubble()
         texts = ["UFD?", "理想?", "$\\mathbb{Z}[i]/(p)$?", "???"]
-        face_bubble.pin_to(happy_face)
         face_bubble.write(texts[1])
         face_bubble.resize_to_content()
+        face_bubble.pin_to(happy_face)
         face_bubble.clear()
         self.play(FadeIn(happy_face))
         self.play(BubbleGrowFromTip(face_bubble))
@@ -768,7 +998,7 @@ class ExamplesOfShortAndVisualProofs(Scene):
                 enable_fill = True, tile_config = {"stroke_width" : 2}
             ),
         )
-        ctt_counter = CalissonTilesCounter(matching_tiling = ctt_tiling)
+        ctt_counter = TilesCounter(matching_tiling = ctt_tiling)
         ctt = VGroup(ctt_tiling, ctt_counter)
         ctt.set_height(FRAME_HEIGHT / 2.5)
         # Move to designated location
@@ -829,7 +1059,7 @@ class CuttingEdgeOrEdgeCutting(Scene):
         tiling_2d = CalissonTiling2D(tiling_3d)
         # Counting tiles
         num_of_tiles = dimension ** 2
-        tiles_counter = CalissonTilesCounter(matching_tiling = tiling_2d)
+        tiles_counter = TilesCounter(matching_tiling = tiling_2d)
         group = VGroup(tiling_2d, tiles_counter)
         group.set_height(3.5)
         group.shift(0.5 * RIGHT)
@@ -901,14 +1131,11 @@ class CountingsDoNotChange(Scene):
                 tiling.remove_tile(direction, [x, y])
             tiling.shuffle_tiles()
         new_border = VMobject(stroke_width = 5, stroke_color = YELLOW)
-        new_border_anchor_points = [
-            ct_grid.coords_to_point(x, y)
-            for x, y in BORDER_ANCHORS_COORDINATES
-        ]
+        new_border_anchor_points = [ct_grid.coords_to_point(x, y) for x, y in BORDER_ACS]
         new_border.set_anchor_points(new_border_anchor_points, mode = "corners")
         init_tiling = tilings[0]
         new_tilings = VGroup(*tilings[1:])
-        ct_counter = CalissonTilesCounter([57, 70, 50], tile_stroke_width = 1, height = 3)
+        ct_counter = TilesCounter([57, 70, 50], tile_stroke_width = 1, height = 3)
         ct_counter.shift(3*RIGHT)
         self.play(ShowCreation(new_border))
         self.wait()
@@ -951,7 +1178,7 @@ class TheConclusionsAreDifferent(Scene):
         np_text.next_to(np_title, DOWN, buff = 0.8)
         arrow = TexMobject("\\Rightarrow")
         arrow.scale(1.5)
-        arrow.move_to((jp_text.get_center()+np_text.get_center())/2)
+        arrow.move_to((jp_text.get_center() + np_text.get_center()) / 2)
         jp_group = VGroup(jp_title, jp_text)
         np_group = VGroup(np_title, np_text)
         VGroup(jp_group, np_group, arrow).center()
@@ -968,7 +1195,294 @@ class TheConclusionsAreDifferent(Scene):
         self.wait()
 
 
-class CTProjection(ThreeDScene):
+class FinalRotationTrick(Scene):
+    CONFIG = {
+        "tiling_buff" : 0.3,
+        "tiling_horiz_bias" : 5,
+        "counter_config" :{
+            "matching_direction" : DOWN,
+            "matching_buff" : 0.4,
+            "tile_fill_opacity" : 0,
+            "height" : 3,
+        }
+    }
+    def construct(self):
+        self.show_initial_tiling()
+        self.rotate_initial_tiling()
+        self.two_ways_to_count()
+        self.merge_tilings()
+        self.rearrange_and_qed()
+
+    def show_initial_tiling(self):
+        ct_grid = CalissonTilingGrid(unit_size = 0.4)
+        ct_3d = CalissonTiling3D(
+            dimension = 5, pattern = AMM_PATTERN,
+            tile_colors = [BLACK] * 3,
+            tile_config = {"stroke_width" : 1, "fill_opacity" : 0},
+        )
+        init_tiling = CalissonTiling2D(ct_3d, ct_grid)
+        init_tiling.to_edge(UP, buff = self.tiling_buff)
+        init_tiling.shift(self.tiling_horiz_bias * LEFT)
+        self.play(ShowCreation(init_tiling, submobject_mode = "lagged_start"))
+        self.wait()
+        unknown_counter, init_counter = [
+            TilesCounter(array, matching_tiling = init_tiling, **self.counter_config)
+            for array in (["?", "?", "?"], ["a", "b", "c"])
+        ]
+        self.play(FadeIn(unknown_counter))
+        self.wait()
+        self.play(
+            ReplacementTransform(unknown_counter, init_counter, submobject_mode = "lagged_start"),
+            run_time = 2
+        )
+        self.wait()
+        self.init_tiling = init_tiling
+        self.init_counter = init_counter
+
+    def rotate_initial_tiling(self):
+        init_tiling = self.init_tiling
+        init_counter = self.init_counter
+        fin_tiling = self.init_tiling.deepcopy()
+        fin_counter = self.init_counter.deepcopy()
+        fin_tiling.shift(2 * self.tiling_horiz_bias * RIGHT)
+        fin_tiling.rotate(PI/3.)
+        fin_counter.next_to(fin_tiling, DOWN, buff = self.get_counter_buff())
+        arrow = Arrow(init_tiling.get_right(), fin_tiling.get_left())
+        arrow.move_to(self.get_center_of_mobs(init_tiling, fin_tiling))
+        text = TextMobject("逆时针 \\\\ 旋转$60^{\\circ}$")
+        text.next_to(arrow, UP, buff = 0.2)
+        rotate_group = VGroup(arrow, text)
+        med_tiling = init_tiling.deepcopy()
+        med_tiling.move_to(self.get_center_of_mobs(init_tiling, fin_tiling))
+        self.play(ReplacementTransform(init_tiling.deepcopy(), med_tiling))
+        self.wait()
+        self.play(
+            ReplacementTransform(med_tiling, fin_tiling, path_arc = PI/3.), 
+            GrowArrow(arrow),
+            SpinInFromNothing(text, path_arc = PI/3.),
+            run_time = 2,
+        )
+        self.wait()
+        self.rotate_group = rotate_group
+        self.fin_tiling = fin_tiling
+        self.fin_counter = fin_counter
+
+    def two_ways_to_count(self):
+        # 1. Forget the past, use the conclusion we just drew.
+        new_arrow, new_text = new_rotate_group = self.rotate_group.deepcopy()
+        self.play(self.rotate_group.fade, 0.8)
+        self.wait()
+        self.bring_to_back(self.rotate_group)
+        self.bring_to_front(self.init_tiling, self.fin_tiling)
+        self.play(
+            Indicate(self.fin_tiling.get_border(), scale_factor = 1.1),
+            Indicate(self.init_tiling.get_border(), scale_factor = 1.1),
+        )
+        self.wait()
+        self.play(ReplacementTransform(self.init_counter.deepcopy(), self.fin_counter))
+        self.wait()
+        # 2. Take advantage of the rotation trick
+        med_tiling = self.init_tiling.deepcopy()
+        med_tiling.next_to(self.fin_tiling, LEFT)
+        med_counter = self.init_counter.deepcopy()
+        med_counter.next_to(med_tiling, DOWN, buff = self.get_counter_buff())
+
+        def arrow_update(arrow):
+            arrow.put_start_and_end_on(
+                self.init_tiling.get_right() + MED_SMALL_BUFF * RIGHT,
+                med_tiling.get_left() + MED_SMALL_BUFF * LEFT
+            )
+        def text_update(text):
+            text.next_to(new_arrow, UP)
+        arrow_update(new_arrow)
+        text_update(new_text)
+        new_rotate_group.save_state()
+        new_rotate_group.fade(0.8)
+        self.play(
+            ReplacementTransform(self.init_tiling.deepcopy(), med_tiling),
+            ReplacementTransform(self.init_counter.deepcopy(), med_counter),
+            ReplacementTransform(self.rotate_group, new_rotate_group),
+            run_time = 3,
+        )
+        self.wait()
+
+        new_arrow.add_updater(arrow_update)
+        new_text.add_updater(text_update)
+        rotated_med_counter = TilesCounter(
+            ["c", "a", "b"],
+            tile_colors = [TILE_BLUE, TILE_RED, TILE_GREEN],
+            matching_tiling = med_tiling, **self.counter_config
+        )
+        self.play(
+            Rotate(med_tiling, PI/3., rate_func = smooth),
+            AnimationGroup(*[
+                Rotate(old_tile, PI/3., rate_func = smooth)
+                for old_tile in med_counter.get_tiles()
+            ]),
+            ApplyMethod(new_rotate_group.restore),
+            run_time = 3,
+        )
+        self.wait()
+        pair_indices = ([0, 1], [1, 2], [2, 0])
+        self.play(
+            AnimationGroup(*[
+                AnimationGroup(
+                    ApplyMethod(med_counter.get_tile(i).move_to, rotated_med_counter.get_tile(j)),
+                    ApplyMethod(med_counter.get_mult_sign(i).move_to, rotated_med_counter.get_mult_sign(j)),
+                    ApplyMethod(med_counter.get_num(i).move_to, rotated_med_counter.get_num(j)),
+                )
+                for i, j in pair_indices
+            ]),
+            run_time = 2
+        )
+        self.wait()
+        self.new_rotate_group = new_rotate_group
+        self.med_tiling = med_tiling
+        self.med_counter = med_counter
+        self.rotated_med_counter = rotated_med_counter
+    
+    def merge_tilings(self):
+        tiling_mid_point = self.get_center_of_mobs(self.med_tiling, self.fin_tiling)
+        counter_mid_point = self.get_center_of_mobs(self.med_counter, self.fin_counter)
+        self.play(
+            ApplyMethod(self.med_tiling.move_to, tiling_mid_point),
+            ApplyMethod(self.fin_tiling.move_to, tiling_mid_point),
+            ApplyMethod(self.med_counter.next_to, counter_mid_point, LEFT),
+            ApplyMethod(self.fin_counter.next_to, counter_mid_point, RIGHT),
+            run_time = 2,
+        )
+        self.wait()
+        # <Sleight of hands>
+        self.rotated_med_counter.move_to(self.med_counter.get_center())
+        self.remove(self.med_counter)
+        self.add(self.rotated_med_counter)
+        # </Sleight of hands>
+
+    def rearrange_and_qed(self):
+        equations = VGroup(*[
+            TexMobject(
+                text,
+                tex_to_color_map = dict(zip(["a", "b", "c"], [TILE_RED, TILE_GREEN, TILE_BLUE]))
+            )
+            for text in ["c = a", "a = b", "b = c"]
+        ])
+        equations.arrange_submobjects(DOWN, buff = 0.35)
+        equations.scale(1.5)
+        equations.next_to(self.fin_tiling, DOWN, buff = 0.7)
+        for k in range(3):
+            med_tile, med_mult_sign, med_num = self.rotated_med_counter.get_pair_elements(k)
+            fin_tile, fin_mult_sign, fin_num = self.fin_counter.get_pair_elements(k)
+            lhs, equal_sign, rhs = equations[k]
+            sur_rect = SurroundingRectangle(VGroup(med_tile, fin_num))
+            self.play(ShowCreationThenDestruction(sur_rect))
+            self.wait()
+            self.play(
+                FadeOut(VGroup(med_tile, med_mult_sign, fin_tile, fin_mult_sign)),
+                Write(equal_sign),
+                ReplacementTransform(med_num, lhs),
+                ReplacementTransform(fin_num, rhs),
+            )
+            self.wait()
+        for mob in (self.init_tiling, self.init_counter, equations):
+            mob.generate_target()
+        equations.target.scale(1.2)
+        eq1_shift_vec = 0.3 * UL
+        eq2_shift_vec = equations.target[1][-1].get_center() - equations.target[2][0].get_center()
+        equations.target[0].fade(1)
+        equations.target[1].shift(eq1_shift_vec)
+        equations.target[2].shift(eq1_shift_vec + eq2_shift_vec)
+        self.play(
+            FadeOut(self.fin_tiling),
+            FadeOut(self.med_tiling),
+            FadeOut(self.new_rotate_group),
+            MoveToTarget(equations),
+        )
+        self.wait()
+        self.init_counter.target.next_to(self.init_tiling, RIGHT, buff = 0.3)
+        init_target_group = VGroup(self.init_tiling.target, self.init_counter.target)
+        init_target_group.move_to(2*LEFT)
+        self.play(
+            MoveToTarget(self.init_tiling),
+            MoveToTarget(self.init_counter),
+        )
+        self.wait()
+        qed_symbol = QEDSymbol()
+        qed_symbol.to_corner(DR)
+        self.play(Write(qed_symbol), run_time = 2)
+        self.wait()
+
+    def get_counter_buff(self):
+        return self.counter_config["matching_buff"]
+
+    def get_center_of_mobs(self, *mobs):
+        return np.mean([mob.get_center() for mob in mobs], axis = 0)
+
+
+class ConnectionsToOtherFields(Scene):
+    def construct(self):
+        # Original Tiling
+        ct_grid = CalissonTilingGrid(unit_size = 0.4)
+        ct_3d = CalissonTiling3D(
+            dimension = 5, pattern = AMM_PATTERN, enable_fill = True,
+            tile_config = {"stroke_width" : 2},
+        )
+        ct_2d = CalissonTiling2D(
+            ct_3d, ct_grid,
+            dumbbell_config = {"point_size" : 0.06, "stem_width" : 0.03}
+        )
+        # Group Theory: Isomorphism - the core of the famous 3D proof (up left corner)
+        gt_iso = TexMobject("L", "=", "\\mathbb{Z}^3")
+        gt_iso.scale(2.2)
+        gt_iso[0].set_color(L_GRADIENT_COLORS)
+        # Linear Algebra: Matrix - proof using system of linear equations (down left corner)
+        la_matrix = Matrix(
+            np.array([
+                ["1", "1", "1"],
+                ["{1 \\over 2}", "-1", "{1 \\over 2}"],
+                ["-{\\sqrt{3} \\over 2}", "0", "{\\sqrt{3} \\over 2}"],
+            ]),
+            v_buff = 1.4, h_buff = 1.2,
+            element_alignment_corner = ORIGIN
+        )
+        la_matrix.scale(0.8)
+        # Combinatorics: Plane Partition (up right corner)
+        comb_pp = VGroup()
+        for row in AMM_PATTERN:
+            for element in row:
+                comb_pp.add(VGroup(
+                    Square(side_length = 0.5, stroke_width = 1),
+                    TexMobject(str(element))
+                ))
+        comb_pp.arrange_submobjects_in_grid(5, 5, buff = 0)
+        comb_pp_rect = SurroundingRectangle(
+            comb_pp, stroke_width = 5, stroke_color = WHITE, buff = 0
+        )
+        comb_pp.add(comb_pp_rect)
+        # Statistical Mechanics: Dimer Model (down right corner)
+        sm_dimer = ct_2d.deepcopy()
+        sm_dimer.get_border().set_stroke(width = 3)
+        sm_dimer.remove(sm_dimer.get_all_tiles())
+        sm_dimer.add(sm_dimer.get_all_dumbbells())
+        # Arrange those stuffs to make it looks pleasing
+        left_group = Group(gt_iso, la_matrix)
+        right_group = Group(comb_pp, sm_dimer)
+        for group, direction, buff in zip([left_group, right_group], [LEFT, RIGHT], [1.5, 0.4]):
+            group.arrange_submobjects(DOWN, aligned_edge = -direction, buff = buff)
+            group.to_edge(direction)
+        mobs = VGroup(gt_iso, la_matrix, comb_pp, sm_dimer)
+        start_points = np.array([2*LEFT+1*UP, 2*LEFT-1*UP, 2*RIGHT+1*UP, 2*RIGHT-1*UP])
+        end_points = np.array([3*LEFT+2*UP, 3*LEFT-1.5*UP, 3*RIGHT+2*UP, 3*RIGHT-1.5*UP])
+        arrows = VGroup(*[
+            Arrow(start_point, end_point, buff = 0)
+            for start_point, end_point in zip(start_points, end_points)
+        ])
+        self.add(ct_2d)
+        for mob, arrow in zip(mobs, arrows):
+            self.play(GrowArrow(arrow), Write(mob, submobject_mode = "all_at_once"))
+            self.wait()
+
+
+class GroupTheoryViewTilingPart(ThreeDScene):
     def construct(self):
         self.set_camera_orientation(theta = 0, distance = 1E7)
         dim = 5
@@ -978,9 +1492,7 @@ class CTProjection(ThreeDScene):
             tile_config = {"stroke_width" : 3, "stroke_color" : WHITE},
         )
         ct_2d = get_ct_3d_xoy_projection(ct_3d)
-        xoy_plane = SurroundingRectangle(
-            ct_2d, color = GREY, fill_opacity = 1, buff = 0.5
-        )
+        xoy_plane = SurroundingRectangle(ct_2d, color = GREY, fill_opacity = 1, buff = 0.5)
         ct_3d.set_stroke(width = 3)
         ct_3d.border.set_stroke(width = 5)
         ct_2d.set_fill(opacity = 1)
@@ -999,6 +1511,150 @@ class CTProjection(ThreeDScene):
         self.wait(60)
 
 
+# https://en.wikipedia.org/wiki/Presentation_of_a_group
+# Lozenge group L is isomorphic to Z^3.
+class GroupTheoryViewExplanationPart(Scene):
+    def construct(self):
+        relation = VGroup(*[TexMobject(text) for text in ("L", "=", "\\mathbb{Z}^3")])
+        relation.scale(2)
+        text_L, text_equal, text_Z3 = relation
+        text_L.set_color(L_GRADIENT_COLORS)
+        text_equal.rotate(PI/2.)
+        text_Z3.set_color(YELLOW)
+        relation.arrange_submobjects(UP, buff = 0.3)
+        rep_L_text = TexMobject("""
+            \\left< a , \\, b , \\, c \\, | \\right.
+            \\, & \\left. a b a^{-1} b^{-1} \\right. \\\\
+            = & \\left. b c b^{-1} c^{-1} \\right. \\\\
+            = & \\left. c a c^{-1} a^{-1} = \\mathbf{1} \\right>
+        """)
+        rep_Z3_text = TexMobject("""
+            \\left< x , \\, y , \\, z \\, | \\right.
+            \\, & \\left.  x y x^{-1} y^{-1} \\right. \\\\
+            = & \\left. y z y^{-1} z^{-1} \\right. \\\\
+            = & \\left. z x z^{-1} x^{-1} = \\mathbf{1} \\right>
+        """)
+        VGroup(rep_L_text, rep_Z3_text).scale(0.75)
+        rep_L_text.next_to(text_L, DOWN, buff = 0.4)
+        rep_Z3_text.next_to(text_Z3, UP, buff = 0.4)
+        rep_L_rect = SurroundingRectangle(
+            rep_L_text, stroke_color = L_GRADIENT_COLORS,
+            fill_color = L_GRADIENT_COLORS, fill_opacity = 0.1
+        )
+        rep_Z3_rect = SurroundingRectangle(
+            rep_Z3_text, stroke_color = YELLOW,
+            fill_color = YELLOW, fill_opacity = 0.1
+        )
+        rep_L = VGroup(rep_L_rect, rep_L_text)
+        rep_Z3 = VGroup(rep_Z3_rect, rep_Z3_text)
+        # L = Z^3 growing animation
+        relation.generate_target()
+        relation.fade(1)
+        text_equal.scale(0)
+        text_L.move_to(text_equal)
+        text_Z3.move_to(text_equal)
+        self.play(MoveToTarget(relation), run_time = 5)
+        self.wait()
+        # Group representations of L and Z^3 growing animation
+        rep_L.generate_target()
+        rep_Z3.generate_target()
+        VGroup(rep_L, rep_Z3).fade(1)
+        VGroup(rep_L, rep_Z3).scale(0)
+        rep_L.move_to(text_L)
+        rep_Z3.move_to(text_Z3)
+        self.play(MoveToTarget(rep_L), MoveToTarget(rep_Z3), run_time = 2)
+        self.wait()
+
+
+class GroupTheoryView2DGenerators(Scene):
+    def construct(self):
+        axes_2d = VGroup(*[
+            Vector(rotate_vector(RIGHT, PI/2. - TAU/6*k), color = WHITE)
+            for k in range(6)
+        ])
+        texts_2d = VGroup(*[
+            TexMobject(element).shift(axis.get_vector() * 1.4)
+            for axis, element in zip(axes_2d, ["a", "b", "c", "a^{-1}", "b^{-1}", "c^{-1}"])
+        ])
+        system_2d = VGroup(axes_2d, texts_2d)
+        plane_2d = SurroundingRectangle(axes_2d, color = GREY, fill_opacity = 0.4, buff = 0.8)
+        generators_2d = VGroup(plane_2d, system_2d)
+        generators_2d.set_height(FRAME_HEIGHT - 2 * MED_SMALL_BUFF)
+        self.play(FadeIn(generators_2d), run_time = 2)
+        self.wait()
+
+
+class GroupTheoryView3DGenerators(ThreeDScene):
+    def construct(self):
+        axes_3d = VGroup(*[
+            Vector(direction, color = WHITE)
+            for direction in (RIGHT, UP, OUT, LEFT, DOWN, IN)
+        ])
+        VGroup(axes_3d[2], axes_3d[-1]).rotate_about_origin(PI/2., OUT)
+        texts_3d = VGroup(*[
+            TexMobject(element) for element in ["x", "y", "z", "x^{-1}", "y^{-1}", "z^{-1}"]
+        ])
+        factors_3d = [1.3, 1.2, 1.2, 1.5, 1.4, 1.2]
+        for text, axis, factor in zip(texts_3d, axes_3d, factors_3d):
+            text.rotate_about_origin(PI/2., axis = RIGHT)
+            text.rotate_about_origin(PI/2., axis = OUT)
+            text.move_to(axis.get_vector() * factor)
+        generators_3d = VGroup(axes_3d, texts_3d)
+        generators_3d.scale(3)
+        self.set_camera_orientation(phi = PI/3, theta = PI/10, distance = 1E7)
+        self.play(FadeIn(generators_3d), run_time = 2)
+        self.begin_ambient_camera_rotation()
+        self.wait(20)
+
+
+class GroupTheoryViewRegionsPart(Scene):
+    def construct(self):
+        pass
+        ct_grid = CalissonTilingGrid(
+            side_length = 15, unit_size = 0.6,
+            grid_lines_type = DashedLine,
+            grid_lines_config = {"stroke_width" : 0.5, "stroke_color" : GREY},
+            grid_triangles_config = {"opacity" : 0}
+        )
+        ct_grid.add_grid_lines()
+        ct_grid.add_grid_triangles()
+        text = TextMobject("能否用$\\left\\{ \\quad, \\quad\\;, \\quad \\right\\}$镶嵌?")
+        text.scale(1.2)
+        text.to_edge(UP)
+        text_rect = SurroundingRectangle(
+            text, stroke_width = 0,
+            fill_color = BLACK, fill_opacity = 0.5,
+        )
+        text_tiles = VGroup(*[
+            RhombusType(rhombus_config = {"fill_opacity" : 1, "stroke_width" : 1}).scale(0.5)
+            for RhombusType in (RRhombus, HRhombus, LRhombus)
+        ])
+        text_tiles[0].next_to(text[3], RIGHT, buff = 0.15)
+        text_tiles[2].next_to(text[6], LEFT, buff = 0.15)
+        text_tiles[1].move_to((text_tiles[0].get_center() + text_tiles[2].get_center()) / 2.)
+        self.add(ct_grid)
+        self.add(text_rect, text, text_tiles)
+        mobs = VGroup()
+        for acs, stroke_color, fill_color, sheen_direction in ALL_SETTINGS:
+            mob = VMobject(
+                stroke_width = 5, stroke_color = stroke_color,
+                sheen_direction = sheen_direction,
+                fill_color = fill_color, fill_opacity = 0.6
+            )
+            mob_anchor_points = [ct_grid.coords_to_point(x, y) for x, y in acs]
+            mob.set_anchor_points(mob_anchor_points, mode = "corners")
+            shift_vector = ct_grid.coords_to_point(-1, 0)
+            mob.shift(shift_vector)
+            mobs.add(mob)
+        for k, mob in enumerate(mobs):
+            if k == 0:
+                self.play(DrawBorderThenFill(mob), run_time = 2)
+            else:
+                self.play(Transform(mobs[0], mob), run_time = 2)
+            self.wait(2)
+        self.wait()
+
+
 #####
 ## Thumbnail
 
@@ -1013,7 +1669,6 @@ class Thumbnail(Scene):
         ct_2d = CalissonTiling2D(
             ct_3d, ct_grid, dumbbell_config = {"point_size" : 0.1, "stem_width" : 0.05}
         )
-        ct_2d.generate_all_dumbbells()
         tiles = ct_2d.get_all_tiles()
         for tile_set in tiles:
             for tile in tile_set:
@@ -1032,5 +1687,4 @@ class Thumbnail(Scene):
         alpha = 1 - smooth(np.clip((x-L)/(R-L), 0, 1), inflection)
         interpolate_val = min_val + (max_val - min_val) * alpha
         return interpolate_val
-
 
