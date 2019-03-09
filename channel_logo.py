@@ -114,7 +114,7 @@ class ChannelLogo(Scene):
         # Now sit back and watch
         self.play(
             Succession(*anims, rate_func = smooth),
-            Write(text, lag_factor = 2.5),
+            Write(text, lag_factor = 2.5, rate_func = squish_rate_func(smooth, 0.1, 0.9)),
             run_time = 4.5,
         )
 
