@@ -1,15 +1,15 @@
 #coding=utf-8
 
-from constants import *
-from utils.rate_functions import *
+from manimlib.constants import *
+from manimlib.utils.rate_functions import *
 
-from animation.creation import Write
-from animation.composition import Succession
-from animation.transform import Transform, ReplacementTransform
-from mobject.types.vectorized_mobject import VMobject, VGroup
-from mobject.svg.tex_mobject import TextMobject
-from once_useful_constructs.fractals import rotate, LindenmayerCurve
-from scene.scene import Scene
+from manimlib.animation.creation import Write
+from manimlib.animation.composition import Succession
+from manimlib.animation.transform import Transform, ReplacementTransform
+from manimlib.mobject.types.vectorized_mobject import VMobject, VGroup
+from manimlib.mobject.svg.tex_mobject import TextMobject
+from manimlib.once_useful_constructs.fractals import rotate, LindenmayerCurve
+from manimlib.scene.scene import Scene
 
 
 class TohruCurve(LindenmayerCurve):
