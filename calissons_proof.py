@@ -20,7 +20,7 @@ CB_LIGHT = "#B69B4C"
 #####
 ## Methods
 def are_close(x, y, thres = 1E-6):
-    return abs(x - y) < thres
+    return abs(x - y) <= thres
 
 def sort_coords(coords_list):
     # First coord_x, then coord_y
@@ -51,7 +51,6 @@ def get_ct_3d_xoy_projection(ct_3d, ct_grid = None):
 
 class Scatter(MoveToTarget):
     def __init__(self, mobject, center = None, scale_factor = 1.5, **kwargs):
-        raise Warning("Scatter animation will overwrite mobject.target!")
         if center is None:
             center = mobject.get_center()
         mobject.generate_target()
@@ -170,7 +169,6 @@ class CalissonTilingGrid(VMobject):
     }
     def generate_points(self):
         self.setup_grid_basics()
-        self.add(self.grid_center, self.basis_vec_x, self.basis_vec_y)
         # self.grid_lines = VGroup()
         # self.grid_points = VGroup()
         # self.grid_triangles = VGroup()
@@ -193,6 +191,7 @@ class CalissonTilingGrid(VMobject):
         # but we need another variable z to help establish the grid.
         self.x_min, self.y_min, self.z_min = [-self.side_length] * 3
         self.x_max, self.y_max, self.z_max = [self.side_length] * 3
+        self.add(self.grid_center, self.basis_vec_x, self.basis_vec_y)
 
     def generate_grid_lines(self):
         grid_lines = VGroup()
@@ -302,8 +301,8 @@ class CalissonTilingGrid(VMobject):
     def point_to_coords(self, point):
         basis_x, basis_y = self.get_basis()
         grid_center = self.get_grid_center()
-        dot_ii = (np.linalg.norm(basis_x))**2
-        dot_jj = (np.linalg.norm(basis_y))**2
+        dot_ii = np.dot(basis_x, basis_x)
+        dot_jj = np.dot(basis_y, basis_y)
         dot_ij = np.dot(basis_x, basis_y)
         dot_pi = np.dot(point - grid_center, basis_x)
         dot_pj = np.dot(point - grid_center, basis_y)
@@ -402,6 +401,7 @@ class CalissonTilingGrid(VMobject):
 ### Need further tweaking
 class CalissonTiling2D(CalissonTiling3D):
     CONFIG = {
+        "enable_dumbbells" : True,
         "dumbbell_config" : {
             "point_size" : 0.07,
             "stem_width" : 0.03,
@@ -411,22 +411,28 @@ class CalissonTiling2D(CalissonTiling3D):
     }
     def __init__(self, ct_3d, ct_grid = None, **kwargs):
         if ct_grid is None:
-            ct_grid = CalissonTilingGrid()
+            self.ct_grid = CalissonTilingGrid()
+        else:
+            self.ct_grid = CalissonTilingGrid(unit_size = ct_grid.get_unit_size())
         self.ct_3d = ct_3d
-        self.ct_grid = ct_grid
         VMobject.__init__(self, **kwargs)
 
     def generate_points(self):
+        self.add(self.ct_grid)
         self.ct_2d = get_ct_3d_xoy_projection(self.ct_3d, self.ct_grid)
         self.border, self.tiles = self.ct_2d
-        self.add(self.ct_grid, self.border, self.tiles)
+        self.add(self.border, self.tiles)
         self.tiles_coords = list()
         self.dumbbells_coords = list()
         for tile_set in self.tiles:
-            tile_set_coords_list = [self.get_tile_coords(tile) for tile in tile_set]
+            tile_set_coords_list = tuple(self.get_tile_coords(tile) for tile in tile_set)
             self.tiles_coords.append(tile_set_coords_list)
-            dumbbell_set_coords = [self.get_tile_bells_center_coords(tile) for tile in tile_set]
+            dumbbell_set_coords = tuple(self.get_tile_bells_center_coords(tile) for tile in tile_set)
             self.dumbbells_coords.append(dumbbell_set_coords)
+        self.tiles_coords = tuple(self.tiles_coords)
+        self.dumbbells_coords = tuple(self.dumbbells_coords)
+        if self.enable_dumbbells:
+            self.add(self.get_all_dumbbells())
 
     def get_all_tiles(self):
         return self.tiles
@@ -439,9 +445,9 @@ class CalissonTiling2D(CalissonTiling3D):
 
     def get_all_tile_coords(self):
         all_tile_coords = list()
-        for tile_set in self.get_all_tiles():
-            for tile in tile_set:
-                all_tile_coords.append(self.get_tile_coords(tile))
+        for tile_set_coords in self.tiles_coords:
+            for tile_coords in tile_set_coords:
+                all_tile_coords.append(tile_coords)
         return tuple(all_tile_coords)
 
     def get_tile_type(self, tile):
@@ -482,7 +488,10 @@ class CalissonTiling2D(CalissonTiling3D):
             for tile_coords, tile in zip(tile_set_coords, tile_set):
                 if all([(x, y) in tile_coords for (x, y) in func_input]):
                     avail_tiles.add(tile)
-        return avail_tiles
+        if len(avail_tiles.submobjects) > 0:
+            return avail_tiles
+        else:
+            raise Exception("Tiles not found.")
     
     def get_dumbbell_by_tile_coords(self, tile_coords):
         tile = self.get_tiles_by_coords(tile_coords)[0]
@@ -595,12 +604,13 @@ class Dumbbell(VMobject):
             )
             for point in (self.start_point, self.end_point)
         ]
-        vector_n = normalize(rotate_vector(self.end_point - self.start_point, PI/2.))
+        vector_l = normalize(self.end_point - self.start_point)
+        vector_n = rotate_vector(vector_l, PI/2.)
         stem_vertices = [
-            self.start_point + vector_n * self.stem_width / 2.,
-            self.start_point - vector_n * self.stem_width / 2.,
-            self.end_point - vector_n * self.stem_width / 2.,
-            self.end_point + vector_n * self.stem_width / 2.
+            self.start_point + self.point_size * vector_l + vector_n * self.stem_width / 2.,
+            self.start_point + self.point_size * vector_l - vector_n * self.stem_width / 2.,
+            self.end_point - self.point_size * vector_l - vector_n * self.stem_width / 2.,
+            self.end_point - self.point_size * vector_l + vector_n * self.stem_width / 2.
         ]
         stem = Polygon(
             *stem_vertices, color = self.color, fill_opacity = 1,
@@ -620,21 +630,12 @@ class Dumbbell(VMobject):
     def get_stem(self):
         return self.stem
 
-##### TODO: Implement DBLabel
-class DBLabel(VMobject):
-    CONFIG = {
-        "color" : YELLOW,   # PINK,
-        "text" : "A",       # "B",
-    }
-    pass
 
-
-##### TODO: Should be an pure object instead?
-class CalissonTilingDifference(CalissonTilingGrid):
-    def __init__(self, ct_2d_A, ct_2d_B, **kwargs):
+##### TODO: Should be a pure object instead?
+class CalissonTilingDifference(object):
+    def __init__(self, ct_2d_A, ct_2d_B):
         self.ct_2d_A = ct_2d_A
         self.ct_2d_B = ct_2d_B
-        CalissonTilingGrid.__init__(self, **kwargs)
 
     def get_tiles_coords(self):
         return tuple([ct.get_all_tile_coords() for ct in [self.ct_2d_A, self.ct_2d_B]])
@@ -1082,19 +1083,20 @@ class CuttingEdgeOrEdgeCutting(Scene):
         self.dijk_text = dijk_text
 
     def show_ce_and_ec_texts(self):
-        ce = TextMobject("A",  "cutting-edge", "method")
-        ec = TextMobject("An", "edge-cutting", "method")
+        ce = TextMobject("A",  "cutting-edge", "method?")
+        ec = TextMobject("An", "edge-cutting", "method!")
         text_group = VGroup(ce, ec)
         text_group.scale(1.2)
         text_group.arrange_submobjects(DOWN, buff = 0.5)
         text_group.next_to(self.group, DOWN, buff = 0.8)
-        ce_copy = ce.copy()
+        ce_copy = ce.deepcopy()
         cross = Cross(ce)
         self.play(Write(ce_copy))
+        self.add(ce)
         self.wait()
         self.play(ShowCreation(cross))
         self.wait()
-        self.play(ApplyMethod(ce.move_to, ec), Animation(cross))
+        self.play(ApplyMethod(ce.move_to, ec))
         self.wait()
         self.play(
             Transform(ce[0], ec[0]),
@@ -1434,6 +1436,7 @@ class ConnectionsToOtherFields(Scene):
         gt_iso = TexMobject("L", "=", "\\mathbb{Z}^3")
         gt_iso.scale(2.2)
         gt_iso[0].set_color(L_GRADIENT_COLORS)
+        gt_iso[0].set_sheen_direction(DOWN)
         # Linear Algebra: Matrix - proof using system of linear equations (down left corner)
         la_matrix = Matrix(
             np.array([
@@ -1519,6 +1522,7 @@ class GroupTheoryViewExplanationPart(Scene):
         relation.scale(2)
         text_L, text_equal, text_Z3 = relation
         text_L.set_color(L_GRADIENT_COLORS)
+        text_L.set_sheen_direction(DOWN)
         text_equal.rotate(PI/2.)
         text_Z3.set_color(YELLOW)
         relation.arrange_submobjects(UP, buff = 0.3)
@@ -1538,7 +1542,7 @@ class GroupTheoryViewExplanationPart(Scene):
         rep_L_text.next_to(text_L, DOWN, buff = 0.4)
         rep_Z3_text.next_to(text_Z3, UP, buff = 0.4)
         rep_L_rect = SurroundingRectangle(
-            rep_L_text, stroke_color = L_GRADIENT_COLORS,
+            rep_L_text, sheen_direction = UP, stroke_color = L_GRADIENT_COLORS,
             fill_color = L_GRADIENT_COLORS, fill_opacity = 0.1
         )
         rep_Z3_rect = SurroundingRectangle(
@@ -1603,13 +1607,12 @@ class GroupTheoryView3DGenerators(ThreeDScene):
         generators_3d.scale(3)
         self.set_camera_orientation(phi = PI/3, theta = PI/10, distance = 1E7)
         self.play(FadeIn(generators_3d), run_time = 2)
-        self.begin_ambient_camera_rotation()
-        self.wait(20)
+        self.begin_ambient_camera_rotation(rate = 0.015)
+        self.wait(30)
 
 
 class GroupTheoryViewRegionsPart(Scene):
     def construct(self):
-        pass
         ct_grid = CalissonTilingGrid(
             side_length = 15, unit_size = 0.6,
             grid_lines_type = DashedLine,
