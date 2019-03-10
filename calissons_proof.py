@@ -410,10 +410,11 @@ class CalissonTiling2D(CalissonTiling3D):
         },
     }
     def __init__(self, ct_3d, ct_grid = None, **kwargs):
+        side_length = ct_3d.get_dimension()
         if ct_grid is None:
-            self.ct_grid = CalissonTilingGrid()
+            self.ct_grid = CalissonTilingGrid(side_length = side_length)
         else:
-            self.ct_grid = CalissonTilingGrid(unit_size = ct_grid.get_unit_size())
+            self.ct_grid = CalissonTilingGrid(side_length = side_length, unit_size = ct_grid.get_unit_size())
         self.ct_3d = ct_3d
         VMobject.__init__(self, **kwargs)
 
@@ -597,13 +598,13 @@ class Dumbbell(VMobject):
         VMobject.__init__(self, **kwargs)
 
     def generate_points(self):
-        bell0, bell1 = [
+        bells = VGroup(*[
             Dot(
                 point, radius = self.point_size, color = self.color, fill_opacity = 1,
                 stroke_color = self.outline_color, stroke_width = self.outline_width
             )
             for point in (self.start_point, self.end_point)
-        ]
+        ])
         vector_l = normalize(self.end_point - self.start_point)
         vector_n = rotate_vector(vector_l, PI/2.)
         stem_vertices = [
@@ -616,19 +617,37 @@ class Dumbbell(VMobject):
             *stem_vertices, color = self.color, fill_opacity = 1,
             stroke_color = self.outline_color, stroke_width = self.outline_width
         )
-        self.add(stem, bell0, bell1)
-        self.bell0 = bell0
-        self.bell1 = bell1
+        self.add(stem, bells)
+        self.bells = bells
         self.stem = stem
 
     def get_center(self):
         return np.average([self.start_point, self.end_point])
 
     def get_bells(self):
-        return VGroup(self.bell0, self.bell1)
+        return self.bells
 
     def get_stem(self):
         return self.stem
+
+    def get_start_and_end_points(self, reverse = False):
+        points = [bell.get_center() for bell in self.get_bells()]
+        if reverse:
+            start_point, end_point = points
+        else:
+            end_point, start_point = points
+        return [start_point, end_point]
+
+    def get_arrow(self, reverse = False):
+        start_point, end_point = self.get_start_and_end_points(reverse = reverse)
+        color = self.get_stem().get_stroke_color()
+        arrow = Arrow(
+            start_point, end_point, color = color,
+            max_tip_length_to_length_ratio = 0.5, buff = 0,
+        )
+        if reverse:
+            arrow.reverse_points()
+        return VGroup(VectorizedPoint(start_point), arrow, VectorizedPoint(end_point))
 
 
 ##### TODO: Should be a pure object instead?
@@ -756,6 +775,92 @@ class CalissonTilingDifference(object):
                     new_loop_dumbbells.add(self.ct_2d_B.get_dumbbell_by_tile_coords(tile_coords))
             loops_dumbbells.add(new_loop_dumbbells)
         return loops_dumbbells
+
+    def calc_reverse_flags(self, loop_dumbbells):
+        def swap(array_with_2_elements):
+            array_with_2_elements.append(array_with_2_elements.pop(0))
+
+        def are_close_in_space(pt_1, pt_2, thres = 3E-6):
+            return np.linalg.norm(pt_1 - pt_2) <= thres
+
+        reverse_flags = list()
+        dumbbells_start_and_end_points = tuple(map(Dumbbell.get_start_and_end_points, loop_dumbbells))
+        for k, points in enumerate(dumbbells_start_and_end_points):
+            if k == 0:      # First pair of points
+                this_start, this_end = dumbbells_start_and_end_points[0]
+                next_start, next_end = dumbbells_start_and_end_points[1]
+                if not (are_close_in_space(this_end, next_start) or are_close_in_space(this_end, next_end)):
+                    swap(dumbbells_start_and_end_points[0])
+                    reverse_flags.append(True)
+                else:
+                    reverse_flags.append(False)
+            else:           # Other pairs of points (which have a previous element)
+                prev_start, prev_end = dumbbells_start_and_end_points[k-1]
+                this_start, this_end = dumbbells_start_and_end_points[k]
+                if not (are_close_in_space(this_start, prev_end)):
+                    swap(dumbbells_start_and_end_points[k])
+                    reverse_flags.append(True)
+                else:
+                    reverse_flags.append(False)
+        return reverse_flags
+
+    def get_loops_arrows(self):
+        loops_dumbbells = self.get_loops_dumbbells()
+        loops_arrows = VGroup()
+        for loop_dumbbells in loops_dumbbells:
+            new_loops_arrows = VGroup()
+            reverse_flags = self.calc_reverse_flags(loop_dumbbells)
+            for dumbbell, reverse_flag in zip(loop_dumbbells, reverse_flags):
+                arrow = dumbbell.get_arrow(reverse = reverse_flag)
+                new_loops_arrows.add(arrow)
+            loops_arrows.add(new_loops_arrows)
+        return loops_arrows
+
+    # def get_loops_polygons(self, **polygon_kwargs):
+    def get_loops_polygons(self):
+        loops_arrows = self.get_loops_arrows()
+        loops_polygons = VGroup()
+        for loop_arrows in loops_arrows:
+            vertices = [loop_arrows[0][1].get_start()] + \
+                       [arrow[1].get_end() for arrow in loop_arrows] + \
+                       [loop_arrows[0][1].get_start()]
+            # loop_polygon = Polygon(*vertices, **polygon_kwargs)
+            loop_polygon = Polygon(*vertices, stroke_width = 8, stroke_color = YELLOW)
+            loops_polygons.add(loop_polygon)
+        return loops_polygons
+
+    def get_loops_run_times(self, factor = 12):
+        loops_polygons = self.get_loops_polygons()
+        loops_run_times = tuple(
+            (len(polygon.points) - 1) / factor
+            for polygon in loops_polygons
+        )
+        return loops_run_times
+
+    def get_loops_time_widths(self, factor = 12):
+        loops_polygons = self.get_loops_polygons()
+        loops_run_times = self.get_loops_run_times(factor = factor)
+        loops_time_widths = tuple(
+            3 / (len(polygon.points) - 1)
+            for polygon, run_time in zip(loops_polygons, loops_run_times)
+        )
+        return loops_time_widths
+
+    def get_loops_cycle_animations(self, factor = 12, rate_func = linear):
+        polygons = self.get_loops_polygons()
+        run_times = self.get_loops_run_times(factor = factor)
+        time_widths = self.get_loops_time_widths(factor = factor)
+        cycle_animations = list(map(
+            CycleAnimation,
+            [
+                ShowPassingFlash(
+                    polygon, time_width = time_width, run_time = run_time, rate_func = rate_func,
+                )
+                for polygon, time_width, run_time in zip(polygons, time_widths, run_times)
+            ]
+            )
+        )
+        return cycle_animations
 
 
 class Sqrt2PWW(VMobject):
@@ -1120,10 +1225,11 @@ class CountingsDoNotChange(Scene):
             CalissonTiling2D(
                 CalissonTiling3D(
                     dimension = 9,
-                    pattern = get_min_array(generate_pattern(9), BOUNDING_VALUES),
+                    pattern = get_lower_bounding_array(generate_pattern(9), BOUNDING_VALUES),
                     tile_config = {"stroke_width" : 1}, enable_fill = True,
                 ),
-                ct_grid = ct_grid
+                ct_grid,
+                enable_dumbbells = False,
             )
             for k in range(6)
         ]
@@ -1132,21 +1238,27 @@ class CountingsDoNotChange(Scene):
             for direction, (x, y) in OBSOLETE_TILES_INFO:
                 tiling.remove_tile(direction, [x, y])
             tiling.shuffle_tiles()
-        new_border = VMobject(stroke_width = 5, stroke_color = YELLOW)
-        new_border_anchor_points = [ct_grid.coords_to_point(x, y) for x, y in BORDER_ACS]
+        new_border = VMobject(
+            fill_color = YELLOW, fill_opacity = 0.2,
+            stroke_width = 5, stroke_color = YELLOW
+        )
+        new_border_anchor_points = [ct_grid.coords_to_point(x, y) for x, y in BORDER_MAIN_PATH_ACS]
         new_border.set_anchor_points(new_border_anchor_points, mode = "corners")
+        subpath_control_points = [ct_grid.coords_to_point(z, w) for z, w in BORDER_SUB_PATH_CTRLS]
+        new_border.add_subpath(subpath_control_points)
         init_tiling = tilings[0]
         new_tilings = VGroup(*tilings[1:])
         ct_counter = TilesCounter([57, 70, 50], tile_stroke_width = 1, height = 3)
         ct_counter.shift(3*RIGHT)
-        self.play(ShowCreation(new_border))
+        self.play(DrawBorderThenFill(new_border), run_time = 2)
+        self.bring_to_back(new_border)
         self.wait()
-        self.play(TilesGrow(init_tiling))
+        self.play(TilesGrow(init_tiling), run_time = 4)
         self.wait()
         new_tilings.shift(2*LEFT)
         self.play(
             ApplyMethod(
-                VGroup(init_tiling, new_border).shift, 2*LEFT
+                VGroup(new_border, init_tiling).shift, 2*LEFT,
             ),
             FadeInFromDown(ct_counter),
         )
@@ -1355,7 +1467,7 @@ class FinalRotationTrick(Scene):
         )
         self.wait()
         # <Sleight of hands>
-        self.rotated_med_counter.move_to(self.med_counter.get_center())
+        self.rotated_med_counter.move_to(self.med_counter)
         self.remove(self.med_counter)
         self.add(self.rotated_med_counter)
         # </Sleight of hands>
@@ -1684,7 +1796,6 @@ class Thumbnail(Scene):
         self.wait()
 
     def interpolate_by_horiz_position(self, mob, min_val, max_val, inflection = 15.0):
-        # x = mob.get_center()[0]
         x = mob.get_center_of_mass()[0]
         L, R = LEFT_SIDE[0], RIGHT_SIDE[0]
         alpha = 1 - smooth(np.clip((x-L)/(R-L), 0, 1), inflection)
