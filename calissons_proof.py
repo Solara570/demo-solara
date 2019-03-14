@@ -1214,6 +1214,45 @@ class CuttingEdgeOrEdgeCutting(Scene):
         self.wait()
 
 
+class PauseAndThinkWhenNecessary(Scene):
+    def construct(self):
+        lightbulb = SVGMobject("Incandescent_LightBulb.svg", height = 2)
+        lightbulb.move_to(2*LEFT)
+        self.play(DrawBorderThenFill(lightbulb), run_time = 1)
+        self.wait()
+        bubble = ThoughtBubble()
+        question = TextMobject("?")
+        bubble.add_content(question)
+        bubble.resize_to_content()
+        question.scale(2)
+        VGroup(bubble, question).move_to(2*RIGHT)
+        self.play(BubbleCreation(bubble), run_time = 1)
+        self.wait()
+        pause_button = PauseButton(color = RED)
+        play_button = PlayButton(color = GREEN)
+        VGroup(pause_button, play_button).scale(1.5).fade(0.8)
+        self.play(FadeIn(pause_button))
+        self.wait()
+        ambient_light = AmbientLight(
+            source_point = VectorizedPoint(lightbulb[1].get_center()),
+            radius = 250, num_levels = 20000,
+            opacity_function = lambda r: 1.0 / (r + 1.0)**1.2,
+        )
+        exclaimation = TexMobject("!")
+        exclaimation.scale(2)
+        exclaimation.move_to(question)
+        self.play(
+            SwitchOn(ambient_light),
+            ApplyMethod(lightbulb[1].set_color, YELLOW),
+            Transform(question, exclaimation),
+            run_time = 1,
+        )
+        self.wait(0.25)
+        self.remove(pause_button)
+        self.add(play_button)
+        self.wait()
+
+
 class CountingsDoNotChange(Scene):
     def construct(self):
         ct_grid = CalissonTilingGrid(
@@ -1530,6 +1569,85 @@ class FinalRotationTrick(Scene):
 
     def get_center_of_mobs(self, *mobs):
         return np.mean([mob.get_center() for mob in mobs], axis = 0)
+
+
+class DijkstrasOriginalNote(Scene):
+    def setup(self):
+        upper_notes = Group(*[
+            ImageMobject("%s_EWD1055_%s.png" % (str(k), str(k)))
+            for k in range(5)
+        ])
+        lower_notes = Group(*[
+            ImageMobject("%s_EWD1055c_%s.png" % (str(k+5), str(k)))
+            for k in range(5)
+        ])
+        for notes in (upper_notes, lower_notes):
+            notes.arrange_submobjects(RIGHT)
+            notes.set_height(2.5)
+        upper_title = TextMobject("EWD1055")
+        upper_group = Group(upper_title, upper_notes)
+        lower_title = TextMobject("EWD1055c")
+        lower_group = Group(lower_title, lower_notes)
+        for group in (upper_group, lower_group):
+            group.arrange_submobjects(DOWN, aligned_edge = LEFT)
+        sep_line = DashedLine(upper_group.get_left(), upper_group.get_right())
+        ewd1055_group = Group(upper_group, sep_line, lower_group)
+        ewd1055_group.arrange_submobjects(DOWN)
+        ewd1055_group.to_edge(UP, buff = 0.25)
+
+        self.upper_title = upper_title
+        self.upper_notes = upper_notes
+        self.upper_group = upper_group
+        self.lower_title = lower_title
+        self.lower_notes = lower_notes
+        self.lower_group = lower_group
+        self.sep_line = sep_line
+        self.ewd1055_group = ewd1055_group
+
+    def construct(self):
+        self.demonstrate_using_animations()
+        self.show_original_notes()
+        self.show_epilogue()
+        pass
+
+    def demonstrate_using_animations(self):
+        ctt_anim = CalissonTiling2D(
+            CalissonTiling3D(
+                dimension = 5, pattern = generate_pattern(5), enable_fill = True,
+                tile_config = {"stroke_width" : 3}
+            ),
+            CalissonTilingGrid(unit_size = 0.5)
+        )
+        ctt_anim.move_to((LEFT_SIDE + ORIGIN) / 2.)
+        note_svg = SVGMobject("Note.svg")
+        note_svg.move_to((RIGHT_SIDE + ORIGIN) / 2.)
+        note_svg.set_height(ctt_anim.get_height() * 0.8)
+        arrow = Arrow(ctt_anim.get_right(), note_svg.get_left(), color = WHITE)
+        question = TexMobject("?")
+        question.scale(2)
+        question.next_to(arrow, UP)
+        self.add(ctt_anim, note_svg, arrow, question)
+        self.wait()
+
+    def show_original_notes(self):
+        self.add(self.upper_group, self.sep_line, self.lower_group)
+        self.wait()
+
+    def show_epilogue(self):
+        page_3, page_4 = self.upper_notes[-2], self.upper_notes[-1]
+        self.add(page_3, page_4)
+        page_group = Group(page_3, page_4)
+        page_group.generate_target()
+        page_group.target.arrange_submobjects(DOWN, buff = 0.1)
+        page_group.target.scale(1.5)
+        page_group.target.to_edge(RIGHT, buff = 1)
+        self.play(MoveToTarget(page_group))
+        self.wait()
+        rect = Rectangle(height = 3.7, width = 3, stroke_width = 5, color = RED)
+        rect.move_to(page_group)
+        rect.shift(page_3.get_height() * 0.05 * DOWN)
+        self.add(rect)
+        self.wait()
 
 
 class ConnectionsToOtherFields(Scene):
