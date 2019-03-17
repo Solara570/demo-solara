@@ -650,7 +650,6 @@ class Dumbbell(VMobject):
         return VGroup(VectorizedPoint(start_point), arrow, VectorizedPoint(end_point))
 
 
-##### TODO: Should be a pure object instead?
 class CalissonTilingDifference(object):
     def __init__(self, ct_2d_A, ct_2d_B):
         self.ct_2d_A = ct_2d_A
@@ -816,46 +815,37 @@ class CalissonTilingDifference(object):
             loops_arrows.add(new_loops_arrows)
         return loops_arrows
 
-    # def get_loops_polygons(self, **polygon_kwargs):
     def get_loops_polygons(self):
         loops_arrows = self.get_loops_arrows()
         loops_polygons = VGroup()
         for loop_arrows in loops_arrows:
             vertices = [loop_arrows[0][1].get_start()] + \
-                       [arrow[1].get_end() for arrow in loop_arrows] + \
-                       [loop_arrows[0][1].get_start()]
-            # loop_polygon = Polygon(*vertices, **polygon_kwargs)
+                       [arrow[1].get_end() for arrow in loop_arrows]
             loop_polygon = Polygon(*vertices, stroke_width = 8, stroke_color = YELLOW)
             loops_polygons.add(loop_polygon)
         return loops_polygons
 
-    def get_loops_run_times(self, factor = 12):
+    def get_loops_run_times(self):
         loops_polygons = self.get_loops_polygons()
         loops_run_times = tuple(
-            (len(polygon.points) - 1) / factor
+            (len(polygon.points) - 1) / 12
             for polygon in loops_polygons
         )
         return loops_run_times
 
-    def get_loops_time_widths(self, factor = 12):
+    def get_loops_time_widths(self):
         loops_polygons = self.get_loops_polygons()
-        loops_run_times = self.get_loops_run_times(factor = factor)
-        loops_time_widths = tuple(
-            3 / (len(polygon.points) - 1)
-            for polygon, run_time in zip(loops_polygons, loops_run_times)
-        )
+        loops_time_widths = tuple(3 / (len(polygon.points) - 1) for polygon in loops_polygons)
         return loops_time_widths
 
-    def get_loops_cycle_animations(self, factor = 12, rate_func = linear):
+    def get_loops_cycle_animations(self, rate_func = linear):
         polygons = self.get_loops_polygons()
-        run_times = self.get_loops_run_times(factor = factor)
-        time_widths = self.get_loops_time_widths(factor = factor)
+        run_times = self.get_loops_run_times()
+        time_widths = self.get_loops_time_widths()
         cycle_animations = list(map(
             CycleAnimation,
             [
-                ShowPassingFlash(
-                    polygon, time_width = time_width, run_time = run_time, rate_func = rate_func,
-                )
+                ShowPassingFlash(polygon, time_width = time_width, run_time = run_time, rate_func = rate_func)
                 for polygon, time_width, run_time in zip(polygons, time_widths, run_times)
             ]
             )
@@ -1662,11 +1652,24 @@ class ConnectionsToOtherFields(Scene):
             ct_3d, ct_grid,
             dumbbell_config = {"point_size" : 0.06, "stem_width" : 0.03}
         )
-        # Group Theory: Isomorphism - the core of the famous 3D proof (up left corner)
+        # Group Theory: Isomorphism - the core of the famous 3D proof (up)
         gt_iso = TexMobject("L", "=", "\\mathbb{Z}^3")
         gt_iso.scale(2.2)
         gt_iso[0].set_color(L_GRADIENT_COLORS)
         gt_iso[0].set_sheen_direction(DOWN)
+        # Algebra: proof by constructing an invariant (up left corner)
+        rhombi = VGroup(*[
+            RhombusType(rhombus_config = {"stroke_width" : 3,"fill_opacity" : 1})
+            for RhombusType in (RRhombus, HRhombus, LRhombus)
+        ])
+        values = TexMobject("+1", "0", "-1", color = BLACK)
+        alg_invar = VGroup()
+        for rhombus, value in zip(rhombi, values):
+            value.arrange_submobjects(RIGHT, buff = 0.1)
+            value.set_height(0.3)
+            value.move_to(rhombus)
+            alg_invar.add(VGroup(rhombus, value))
+        alg_invar.arrange_submobjects(RIGHT)
         # Linear Algebra: Matrix - proof using system of linear equations (down left corner)
         la_matrix = Matrix(
             np.array([
@@ -1697,21 +1700,26 @@ class ConnectionsToOtherFields(Scene):
         sm_dimer.remove(sm_dimer.get_all_tiles())
         sm_dimer.add(sm_dimer.get_all_dumbbells())
         # Arrange those stuffs to make it looks pleasing
-        left_group = Group(gt_iso, la_matrix)
+        ct_2d.shift(DOWN)
+        gt_iso.to_edge(UP)
+        left_group = Group(alg_invar, la_matrix)
         right_group = Group(comb_pp, sm_dimer)
         for group, direction, buff in zip([left_group, right_group], [LEFT, RIGHT], [1.5, 0.4]):
             group.arrange_submobjects(DOWN, aligned_edge = -direction, buff = buff)
             group.to_edge(direction)
-        mobs = VGroup(gt_iso, la_matrix, comb_pp, sm_dimer)
-        start_points = np.array([2*LEFT+1*UP, 2*LEFT-1*UP, 2*RIGHT+1*UP, 2*RIGHT-1*UP])
-        end_points = np.array([3*LEFT+2*UP, 3*LEFT-1.5*UP, 3*RIGHT+2*UP, 3*RIGHT-1.5*UP])
+        mobs = VGroup(gt_iso, alg_invar, la_matrix, comb_pp, sm_dimer)
+        start_points = np.array([1.2*UP, 1.5*LEFT+0.5*UP, 2*LEFT-1*UP, 1.5*RIGHT+0.5*UP, 2*RIGHT-1*UP])
+        end_points = np.array([2.4*UP, 3*LEFT+2*UP, 3*LEFT-1.5*UP, 3*RIGHT+2*UP, 3*RIGHT-1.5*UP])
         arrows = VGroup(*[
             Arrow(start_point, end_point, buff = 0)
             for start_point, end_point in zip(start_points, end_points)
         ])
-        self.add(ct_2d)
-        for mob, arrow in zip(mobs, arrows):
-            self.play(GrowArrow(arrow), Write(mob, submobject_mode = "all_at_once"))
+        self.add(ct_2d, gt_iso,  arrows[0])
+        for mob, arrow in zip(mobs[1:], arrows[1:]):
+            self.play(
+                GrowArrow(arrow),
+                Write(mob, submobject_mode = "all_at_once"),
+                run_time = 1)
             self.wait()
 
 
