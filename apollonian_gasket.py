@@ -195,10 +195,10 @@ class ApollonianGasket_2_2_3(ApollonianGasketScene):
         }
     }
 
-class ApollonianGasket_6_7_7(ApollonianGasketScene):
+class ApollonianGasket_3_6_7(ApollonianGasketScene):
     CONFIG = {
-        "curvatures" : [7, 7, 6],
-        "init_angle" : PI/2.,
+        "curvatures" : [3, 6, 7],
+        "init_angle" : None,
     }
 
 class ApollonianGasket_8_9_9(ApollonianGasketScene):
@@ -225,10 +225,10 @@ class ApollonianGasket_5_8_8(ApollonianGasketScene):
         }
     }
 
-class ApollonianGasket_15_19_19(ApollonianGasketScene):
+class ApollonianGasket_10_15_19(ApollonianGasketScene):
     CONFIG = {
-        "curvatures" : [19, 19, 15],
-        "init_angle" : 0,
+        "curvatures" : [10, 15, 19],
+        "init_angle" : None,
         "ag_config" : {
             "agc_config" : {
                 "circle_color" : PINK,
