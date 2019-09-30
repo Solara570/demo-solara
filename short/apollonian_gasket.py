@@ -62,39 +62,43 @@ def calc_new_agc_info(agc1, agc2, agc3, known_agc = None):
         z4_2 = const_2 / coeff_2
         return [(k4_1, complex_to_R3(z4_1)), (k4_2, complex_to_R3(z4_2))]
 
-
 class AGCircle(VMobject):
     CONFIG = {
+        "radius_thres" : 1e-3,
         "circle_color" : BLUE,
         "label_color" : WHITE,
     }
     def __init__(self, center, radius, parents = None, **kwargs):
+        super(AGCircle, self).__init__(**kwargs)
         self.center = center
         self.radius = radius
         self.parents = parents
-        VMobject.__init__(self, **kwargs)
+        self.add_circle()
+        if self.radius > self.radius_thres:
+            self.add_label()
 
-    def generate_points(self):
-        # Add Circle
-        stroke_width = 0.5
+    def add_circle(self):
         circle = Circle(
-            radius = np.abs(self.radius), fill_opacity = 0,
-            stroke_color = self.circle_color, stroke_width = stroke_width
+            radius = np.abs(self.radius),
+            stroke_color = self.circle_color, stroke_width = 1,
         )
         circle.move_to(self.center)
         self.add(circle)
-        # Add label
-        if self.radius > 0.001:
-            label = TexMobject(
-                "%d" % int(np.round(1./self.radius)),
-                background_stroke_width = 0, color = self.label_color
-            )
-            h_factor = circle.get_width() * 0.6 / label.get_width()
-            v_factor = circle.get_height() * 0.5 / label.get_height()
-            factor = np.min([h_factor, v_factor])
-            label.scale(factor)
-            label.move_to(self.center)
-            self.add(label)
+        self.circle = circle
+
+    def add_label(self):
+        circle = self.circle
+        label = TexMobject(
+            "%d" % int(np.round(1./self.radius)),
+            background_stroke_width = 0,
+        )
+        h_factor = circle.get_width() * 0.6 / label.get_width()
+        v_factor = circle.get_height() * 0.5 / label.get_height()
+        factor = np.min([h_factor, v_factor])
+        label.scale(factor)
+        label.move_to(self.center)
+        self.add(label)
+        self.label = label
 
     def get_curvature(self):
         return 1./self.radius
@@ -119,10 +123,8 @@ class ApollonianGasket(VMobject):
         }
     }
     def __init__(self, agc1, agc2, agc3, **kwargs):
-        self.agc_list = [(agc1, agc2, agc3)]
         VMobject.__init__(self, **kwargs)
-
-    def generate_points(self):
+        self.agc_list = [(agc1, agc2, agc3)]
         for n in range(self.num_iter+1):
             self.add(VGroup(*self.agc_list[-1]))
             if n != self.num_iter:

@@ -2,8 +2,9 @@
 
 import math
 from manimlib.constants import *
-from manimlib.animation.creation import ShowCreation, FadeOut
-from manimlib.animation.transform import ApplyMethod, ReplacementTransform
+from manimlib.animation.creation import ShowCreation
+from manimlib.animation.fading import FadeOut
+from manimlib.animation.transform import ApplyMethod, ReplacementTransform, Restore
 from manimlib.mobject.types.vectorized_mobject import VMobject, VGroup
 from manimlib.mobject.svg.tex_mobject import TexMobject, TextMobject
 from manimlib.mobject.geometry import Circle, Rectangle, Arrow
@@ -22,19 +23,20 @@ def get_stroke_width_by_height(height, thres = 1):
 
 
 class AssembledFraction(VMobject):
+    CONFIG = {
+        "stroke_width": 0,
+        "fill_opacity": 1.0,
+    }
     def __init__(self, p, q, **kwargs):
         self.p = str(p)
         self.q = str(q)
-        VMobject.__init__(self, **kwargs)
+        super(AssembledFraction, self).__init__(**kwargs)
 
     def generate_points(self):
         numer = TexMobject(self.p)
         denom = TexMobject(self.q)
-        line = Rectangle(
-            height = 0.2, stroke_width = 0,
-            fill_color = WHITE, fill_opacity = 1
-        )
-        line.set_width(max(numer.get_width(), denom.get_width()) * 1.1)
+        line = Rectangle(height = 0.02)
+        line.set_width(max(numer.get_width(), denom.get_width()) * 1.1, stretch = True)
         self.add(numer, line, denom)
         self.arrange_submobjects(DOWN, buff = 0.15)
         self.numer = numer
@@ -60,7 +62,6 @@ class ZoomInOnFordCircles(Scene):
             },
         },
         "circle_config": {
-            "start_angle" : -PI/2.,
             "stroke_width" : 1,
             "stroke_color" : BLUE,
         },
@@ -141,14 +142,15 @@ class ZoomInOnFordCircles(Scene):
         self.play_farey_sum_animation(11, 15, 14, 19)
         self.play_farey_sum_animation(14, 19, 17, 23)
         self.wait()
-        # Reset
-        self.play(self.acl.restore, run_time = 4)
+        Reset
+        self.play(Restore(self.acl), lag_ratio = 0, run_time = 4)
         self.wait()
 
     def generate_circle_by_fraction(self, p, q):
         radius = 1./(2 * q**2)
         center = self.axes.coords_to_point(p/q, radius)
         circle = Circle(radius = radius, **self.circle_config)
+        circle.rotate(-PI/2.)
         circle.move_to(center)
         return circle
 
@@ -166,10 +168,10 @@ class ZoomInOnFordCircles(Scene):
                 VGroup(self.axes, self.circles, self.labels).scale, scaling_factor,
                 {"about_point" : self.axes.coords_to_point(center, 0)}
             ),
-            **kwargs,
+            lag_ratio = 0, **kwargs,
         )
 
-    def get_feray_sum_key_mobjects(self, p1, q1, p2, q2):
+    def get_farey_sum_key_mobjects(self, p1, q1, p2, q2):
         assert (q1 + q2 <= self.q_max)
         c1 = self.get_circle_by_fraction(p1, q1).deepcopy()
         c2 = self.get_circle_by_fraction(p2, q2).deepcopy()
@@ -184,7 +186,7 @@ class ZoomInOnFordCircles(Scene):
         return c1, c2, c3, l1, l2, l3
 
     def play_farey_sum_animation(self, p1, q1, p2, q2):
-        c1, c2, c3, l1, l2, l3 = self.get_feray_sum_key_mobjects(p1, q1, p2, q2)
+        c1, c2, c3, l1, l2, l3 = self.get_farey_sum_key_mobjects(p1, q1, p2, q2)
         l3.set_color(PINK)
         self.wait()
         self.play(
@@ -192,10 +194,14 @@ class ZoomInOnFordCircles(Scene):
             ShowCreation(c2), ApplyMethod(l2.set_color, YELLOW),
         )
         self.play(
-            ReplacementTransform(VGroup(l1.numer.deepcopy(), l2.numer.deepcopy()), l3.numer),
-            ReplacementTransform(VGroup(l1.line.deepcopy(), l2.line.deepcopy()), l3.line),
-            ReplacementTransform(VGroup(l1.denom.deepcopy(), l2.denom.deepcopy()), l3.denom),
-            ReplacementTransform(VGroup(c1.deepcopy(), c2.deepcopy()), c3),
+            ReplacementTransform(l1.numer.deepcopy(), l3.numer),
+            ReplacementTransform(l1.line.deepcopy(), l3.line),
+            ReplacementTransform(l1.denom.deepcopy(), l3.denom),
+            ReplacementTransform(l2.numer.deepcopy(), l3.numer),
+            ReplacementTransform(l2.line.deepcopy(), l3.line),
+            ReplacementTransform(l2.denom.deepcopy(), l3.denom),
+            ReplacementTransform(c1.deepcopy(), c3),
+            ReplacementTransform(c2.deepcopy(), c3),
         )
         self.wait()
         self.play(FadeOut(VGroup(c1, c2, c3, l1, l2, l3)))
