@@ -142,7 +142,7 @@ class ZoomInOnFordCircles(Scene):
         self.play_farey_sum_animation(11, 15, 14, 19)
         self.play_farey_sum_animation(14, 19, 17, 23)
         self.wait()
-        Reset
+        # Reset
         self.play(Restore(self.acl), lag_ratio = 0, run_time = 4)
         self.wait()
 
