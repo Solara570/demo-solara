@@ -2612,10 +2612,49 @@ class NormalFormIn3D(ThreeDScene):
 #####
 ## Banner
 class Banner_Intro(Scene):
-    pass
-    # TODO:
-    # (1) Change the original banner's color palette;
-    # (2) Add the code here.
+        CONFIG = {
+        "circle_color" : YELLOW,
+        "text_color" : BLUE,
+        "inv_text_color" : BLUE,
+        "circle_center" : 0.8*UP,
+        "circle_radius" : 3,
+        "grid_side_length" : 0.5,
+        "x_range" : 300,
+        "y_range" : 300,
+        "dist_thres" : 300,
+    }
+    def construct(self):
+        circle = Circle(color = self.circle_color, radius = self.circle_radius, stroke_width = 5)
+        circle.move_to(self.circle_center)
+        dot = SmallDot(self.circle_center, color = self.circle_color)
+        text = TextMobject("Inversion", color = self.text_color, background_stroke_width = 3)
+        text.rotate(PI/2.)
+        text.move_to(0.4*RIGHT)
+        text.apply_complex_function(np.exp)
+        text.rotate(-PI/2.)
+        text.scale(1.5)
+        text.move_to(0.9*DOWN)
+        inv_text = InversedVMobject(text, circle, use_dashed_vmob = False)
+        inv_text.suspend_updating()
+        inv_text.set_background_stroke(color = "#303030", width = 3)
+        inv_text.set_stroke(width = 0)
+        inv_text.set_fill(color = self.inv_text_color, opacity = 0.5)
+        grid = VGroup(*[
+            Square(
+                side_length = self.grid_side_length,
+                stroke_width = 0, fill_opacity = 0.3,
+                fill_color = CB_DARK if (i+j)%2==0 else CB_LIGHT
+            ).move_to(self.circle_center + (i*RIGHT+j*UP)*self.grid_side_length)
+            for i in range(-self.x_range, self.x_range+1, 1)
+            for j in range(-self.y_range, self.y_range+1, 1)
+            if np.sqrt(i**2+j**2) * self.grid_side_length < self.dist_thres
+        ])
+        for square in grid:
+            if is_close_in_R3(square.get_center(), self.circle_center):
+                grid.remove(square)
+        inv_grid = InversedVMobject(grid, circle, use_dashed_vmob = False)
+        self.add(inv_grid, circle, dot, text, inv_text)
+        self.wait()
 
 
 class Banner_AdvancedP1(ApollonianGasketScene):
