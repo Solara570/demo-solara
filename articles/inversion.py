@@ -2612,7 +2612,7 @@ class NormalFormIn3D(ThreeDScene):
 #####
 ## Banner
 class Banner_Intro(Scene):
-        CONFIG = {
+    CONFIG = {
         "circle_color" : YELLOW,
         "text_color" : BLUE,
         "inv_text_color" : BLUE,
