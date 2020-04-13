@@ -1848,30 +1848,52 @@ class GroupTheoryViewRegionsPart(Scene):
 
 class Thumbnail(Scene):
     def construct(self):
-        dim = 20
+        dim = 24
         pattern = generate_pattern(dim)
-        ct_grid = CalissonTilingGrid()
+        ct_grid = CalissonTilingGrid(unit_size = 0.5)
         ct_3d = CalissonTiling3D(
             dimension = dim, pattern = pattern, enable_fill = True
         )
         ct_2d = CalissonTiling2D(
-            ct_3d, ct_grid, dumbbell_config = {"point_size" : 0.1, "stem_width" : 0.05}
+            ct_3d, ct_grid, dumbbell_config = {"point_size" : 0.06, "stem_width" : 0.03}
         )
         tiles = ct_2d.get_all_tiles()
+        dumbbells = ct_2d.get_all_dumbbells()
         for tile_set in tiles:
             for tile in tile_set:
-                opacity = self.interpolate_by_horiz_position(tile, 0, 1)
-                stroke_width = self.interpolate_by_horiz_position(tile, 0, 5)
+                x = tile.get_center_of_mass()[0]
+                opacity = self.interpolate_fill_opacity_by_x(x, 0, 1)
+                stroke_width = self.interpolate_stroke_and_fade_by_x(x, 0, 3)
                 tile.set_fill(opacity = opacity)
                 tile.set_stroke(width = stroke_width)
-        dumbbells = ct_2d.get_all_dumbbells()
-        self.add(ct_2d, dumbbells)
+        for dumbbell_set in dumbbells:
+            for dumbbell in dumbbell_set:
+                x = dumbbell.get_center_of_mass()[0]
+                fade_factor = self.interpolate_stroke_and_fade_by_x(x, 0, 1)
+                dumbbell.fade(fade_factor)
+        sep_lines = VGroup(*[
+            DashedLine(TOP, BOTTOM, color = YELLOW).move_to(position)
+            for position in (LEFT_SIDE/3, RIGHT_SIDE/3)
+        ])
+        titles = VGroup(*[
+            TextMobject(text, color = YELLOW).scale(3).move_to(position)
+            for text, position in zip(["2D...", "3D?", "2D!"], [LEFT_SIDE*2/3, ORIGIN, RIGHT_SIDE*2/3])
+        ]).to_edge(UP, buff = 0.3)
+        titles_bg_rect = BackgroundRectangle(titles).scale(1.5)
+        self.add(ct_2d, dumbbells, titles_bg_rect, sep_lines, titles)
         self.wait()
 
-    def interpolate_by_horiz_position(self, mob, min_val, max_val, inflection = 15.0):
-        x = mob.get_center_of_mass()[0]
-        L, R = LEFT_SIDE[0], RIGHT_SIDE[0]
-        alpha = 1 - smooth(np.clip((x-L)/(R-L), 0, 1), inflection)
-        interpolate_val = min_val + (max_val - min_val) * alpha
-        return interpolate_val
+    def interpolate_stroke_and_fade_by_x(self, x, min_val, max_val, inflection = 10.0):
+        R = RIGHT_SIDE[0]
+        if x <= R/6:
+            return max_val
+        elif x>= R/2:
+            return min_val
+        else:
+            alpha = 1 - smooth(np.clip(3*x/R-1/2, 0, 1))
+            return min_val + (max_val - min_val) * alpha
+
+    def interpolate_fill_opacity_by_x(self, x, min_val, max_val, inflection = 10.0):
+        return self.interpolate_stroke_and_fade_by_x(np.abs(x), min_val, max_val, inflection)
+
 
