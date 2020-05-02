@@ -35,14 +35,14 @@ class CalissonTiling3D(VMobject):
     CONFIG = {
         "dimension" : 3,
         "pattern" : None,
-        "enable_fill"  : False,
+        "enable_fill" : False,
         "enable_shuffle" : False,        # FOR TRANSFORMATION ONLY!
         "height" : 4,
         "tile_colors" : TILE_COLOR_SET,  # UP-DOWN, OUT-IN, RIGHT-LEFT
-        "fill_opacity" : 1,
         "tile_config": {
             "stroke_width" : 5,
             "stroke_color" : WHITE,
+            "fill_opacity" : 1,
         },
         "border_config" : {
             "stroke_width" : 5,
@@ -77,7 +77,8 @@ class CalissonTiling3D(VMobject):
         all_tiles = [out_tiles, right_tiles, up_tiles]
         for tile_set, color in zip(all_tiles, self.tile_colors):
             for tile in tile_set:
-                tile.set_fill(color = color, opacity = self.enable_fill)
+                opacity = self.tile_config.get("fill_opacity", 0) if self.enable_fill else 0
+                tile.set_fill(color = color, opacity = opacity)
         self.backup_tiles = VGroup(*all_tiles).copy()
 
     def init_pattern(self):
@@ -273,7 +274,7 @@ class Rhombus120(VMobject):
             "mark_paths_closed" : True,
         },
         "refline_config" : {
-            "stroke_color" : DARK_GRAY,
+            "stroke_color" : GRAY,
             "stroke_width" : 2,
         },
     }
@@ -681,7 +682,7 @@ class DifferentViews(CalissonTilingScene):
     def add_tiling(self):
         self.set_camera_orientation(*DIAG_POS)
         self.tiling = CalissonTiling3D(
-            dimension = 5, pattern = AMM_PATTERN, enable_fill = True
+            dimension = 5, pattern = MAA_PATTERN, enable_fill = True
         )
         self.add(self.tiling)
         self.wait(3)
@@ -783,7 +784,7 @@ class TilingSolution3DPart(CalissonTilingScene):
     def setup_tiling(self):
         self.wait(2)
         self.set_camera_orientation(*DIAG_POS)
-        self.tiling = CalissonTiling3D(dimension = 5, pattern = AMM_PATTERN)
+        self.tiling = CalissonTiling3D(dimension = 5, pattern = MAA_PATTERN)
         self.play(Write(self.tiling, rate_func = smooth), run_time = 3)
         self.wait(2)
         

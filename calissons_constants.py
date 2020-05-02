@@ -19,10 +19,14 @@ def generate_pattern(dim):
 # POS = (phi, theta, distance)
 # To make it more convincing, the distance is set to be HUGE.
 
+DEFAULT_POS = (0, -np.pi/2, 1E7)
 DIAG_POS  = (np.arctan(np.sqrt(2)), np.pi/4., 1E7)
 UP_POS    = (0, 0, 1E7)
 FRONT_POS = (np.pi/2., 0, 1E7)
 RIGHT_POS = (np.pi/2., np.pi/2., 1E7)
+
+#####
+## Specific Patterns
 
 EG_4D_PATTERN = np.array([
     [4, 3, 2, 1],
@@ -31,7 +35,7 @@ EG_4D_PATTERN = np.array([
     [3, 2, 0, 0],
 ])
 
-AMM_PATTERN = np.array([
+MAA_PATTERN = np.array([
     [5, 5, 5, 4, 3],
     [5, 5, 5, 1, 0],
     [5, 5, 1, 0, 0],
@@ -207,7 +211,7 @@ C3_ACS = [
 ALL_SETTINGS = [
     (SNOWFLAKE_ACS, BLUE, [BLUE_D, BLUE_B], UL),
     (R1_ACS, GREEN, [GREEN_B, GREEN_D], RIGHT),
-    (AVATAR_ACS, YELLOW, [ORANGE, GREEN, PURPLE, WHITE], UR),
+    (AVATAR_ACS, WHITE, [ORANGE, GREEN, PURPLE, WHITE], UR),
     (R2_ACS, GOLD, [GOLD_D, GOLD_B], DR),
     (C3_ACS, RED, [MAROON_D, MAROON_B], LEFT)
 ]
