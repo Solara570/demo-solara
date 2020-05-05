@@ -109,7 +109,6 @@ class TilesCounter(VMobject):
             text.scale(1.8)
             pair.arrange_submobjects(RIGHT)
         pairs.arrange_submobjects(
-            # DOWN, index_of_submobject_to_align = 0, aligned_edge = RIGHT, buff = self.counter_buff
             DOWN, index_of_submobject_to_align = 1, aligned_edge = LEFT, buff = self.counter_buff
         )
         if self.matching_tiling is not None and self.matching_height:
@@ -181,10 +180,6 @@ class CalissonTilingGrid(VMobject):
         self.generate_grid_points()
         self.generate_grid_triangles()
         self.generate_grid_boundary()
-        # self.grid_lines = VGroup()
-        # self.grid_points = VGroup()
-        # self.grid_triangles = VGroup()
-        # self.grid_boundary = VMobject()
 
     def setup_grid_basics(self):
         # The intent here is to bury some invisible Mobjects inside the grid,
@@ -439,7 +434,6 @@ class CalissonTilingGrid(VMobject):
         return self.get_randomized_copy(self.get_grid_triangles())
 
 
-### Needs further tweaking
 class CalissonTiling2D(CalissonTiling3D):
     CONFIG = {
         "enable_dumbbells" : True,
@@ -852,13 +846,11 @@ class CalissonTilingDifference(object):
                     reverse_flags.append(True)
         return reverse_flags
 
-    def get_loops_bells_and_loops_sheen_directions(self):
+    def get_loops_bells(self):
         loops_dumbbells = self.get_loops_dumbbells()
         loops_bells = VGroup()
-        loops_sheen_directions = []
         for loop_dumbbells in loops_dumbbells:
             loop_bells = VGroup()
-            loop_sheen_directions = []
             reverse_flags = self.get_loop_reverse_flags(loop_dumbbells)
             num_of_pairs = len(reverse_flags)//2
             for k in range(num_of_pairs):
@@ -876,17 +868,8 @@ class CalissonTilingDifference(object):
                     this_dumbbell.get_end_bell(reverse = this_reverse_flag),
                     next_dumbell.get_start_bell(reverse = next_reverse_flag)
                 ]))
-                loop_sheen_directions.append(
-                    prev_dumbbell.get_start_point(reverse = prev_reverse_flag) - \
-                    this_dumbbell.get_end_point(reverse = this_reverse_flag)
-                )
-                loop_sheen_directions.append(
-                    next_dumbell.get_end_point(reverse = next_reverse_flag) - \
-                    this_dumbbell.get_start_point(reverse = this_reverse_flag)
-                )
             loops_bells.add(loop_bells)
-            loops_sheen_directions.append(loop_sheen_directions)
-        return loops_bells, loops_sheen_directions
+        return loops_bells
 
     def get_loop_arrows(self, loop_dumbbells):
         reverse_flags = self.get_loop_reverse_flags(loop_dumbbells)
@@ -901,43 +884,14 @@ class CalissonTilingDifference(object):
             for loop_dumbbells in self.get_loops_dumbbells()
         ])
 
-    def get_loop_polygon(self, loop_arrows):
-        vertices = [loop_arrows[0][1].get_start()] + \
-                   [arrow[1].get_end() for arrow in loop_arrows]
-        return Polygon(*vertices, stroke_width = 8, stroke_color = YELLOW)
-
-    def get_loops_polygons(self):
-        return VGroup(*[
-            self.get_loop_polygon(loop_arrows)
-            for loop_arrows in self.get_loops_arrows()
-        ])
-
-    def get_loops_run_times(self):
-        loops_polygons = self.get_loops_polygons()
-        loops_run_times = tuple(
-            (len(polygon.points) - 1) / 12
-            for polygon in loops_polygons
-        )
-        return loops_run_times
-
-    def get_loops_time_widths(self):
-        loops_polygons = self.get_loops_polygons()
-        loops_time_widths = tuple(3 / (len(polygon.points) - 1) for polygon in loops_polygons)
-        return loops_time_widths
-
-    def get_loops_cycle_animations(self, rate_func = linear):
-        polygons = self.get_loops_polygons()
-        run_times = self.get_loops_run_times()
-        time_widths = self.get_loops_time_widths()
-        cycle_animations = list(map(
-            CycleAnimation,
-            [
-                ShowPassingFlash(polygon, time_width = time_width, run_time = run_time, rate_func = rate_func)
-                for polygon, time_width, run_time in zip(polygons, time_widths, run_times)
-            ]
-            )
-        )
-        return cycle_animations
+    def get_loop_arrows_crossing_vertical_line(self, loop_arrows, line):
+        x_thres = (line.get_start()[0] + line.get_end()[0]) / 2.
+        valid_arrows = VGroup()
+        for k, loop_arrow in enumerate(loop_arrows):
+            x1, x2 = loop_arrow.get_left()[0], loop_arrow.get_right()[0]
+            if (x1-x_thres)*(x2-x_thres) <= 0:
+                valid_arrows.add(loop_arrow)
+        return valid_arrows
 
 
 class CalissonRing(VMobject):
@@ -992,72 +946,6 @@ class Sqrt2PWW(VMobject):
         self.squares = VGroup(outer_square, ul_square, dr_square, inner_square)
         self.add(self.squares)
         self.set_height(self.height)
-
-
-class Tangram(VMobject):
-    CONFIG = {
-        "piece_colors" : [RED_D, CB_LIGHT, BLUE_D, YELLOW_D, GREEN_E, MAROON_B, ORANGE],
-        "border_width" : 5,
-        "height" : 4,
-    }
-    def generate_points(self):
-        self.tweak_piece_colors()
-        pieces = [self.generate_piece(i) for i in range(7)]
-        border = self.generate_border()
-        self.add(*pieces, border)
-        self.center()
-        self.set_height(self.height)
-
-        self.pieces = pieces
-        self.border = border
-
-    def tweak_piece_colors(self):
-        if self.piece_colors != 7:
-            new_colors = color_gradient(self.piece_colors, 7)
-            self.piece_colors = new_colors
-
-    def get_main_vertices(self):
-        return [
-            np.array([0., 0., 0.]), np.array([1., 0., 0.]), np.array([1., 0.5, 0.]),
-            np.array([1., 1., 0.]), np.array([0.5, 1., 0.]), np.array([0., 1., 0.]),
-            np.array([0.25, 0.75, 0.]), np.array([0.5, 0.5, 0.]), np.array([0.75, 0.25, 0.]),
-            np.array([0.75, 0.75, 0.])
-        ]
-
-    def get_all_piece_indices(self):
-        return [
-            (0, 1, 7, 0), (0, 5, 7, 0), (2, 4, 3, 2), (4, 6, 7, 9, 4),
-            (1, 2, 9, 8, 1), (4, 5, 6, 4), (8, 9, 7, 8)
-        ]
-
-    def generate_piece(self, piece_index, **kwargs):
-        anchors = self.get_piece_anchors(piece_index)
-        color = self.get_piece_color(piece_index)
-        piece = VMobject(stroke_width = 0, fill_color = color, fill_opacity = 1)
-        piece.set_anchor_points(anchors, mode = "corners")
-        return piece
-
-    def get_pieces(self):
-        return self.pieces
-
-    def get_piece(self, piece_index):
-        return self.get_pieces()[piece_index]
-
-    def get_piece_anchors(self, piece_index):
-        main_vertices = self.get_main_vertices()
-        all_piece_indices = self.get_all_piece_indices()
-        return np.array([main_vertices[i] for i in all_piece_indices[piece_index]])
-
-    def get_piece_color(self, piece_index):
-        return self.piece_colors[piece_index]
-
-    def generate_border(self):
-        border = VMobject(stroke_width = self.border_width)
-        border.set_anchor_points([ORIGIN, RIGHT, UR, UP, ORIGIN], mode = "corners")
-        return border
-
-    def get_border(self):
-        return self.border
 
 
 class ImageWithRemark(Mobject):
@@ -1170,6 +1058,85 @@ class ChessPiece(ImageMobject):
         ImageMobject.__init__(self, png_filename)
 
 
+class HexagonalGrid(VMobject):
+    CONFIG = {
+        "n" : 4,
+        "side_length" : 0.45,
+    }
+    def generate_points(self):
+        hex_unit = RegularPolygon(n = 6, color = WHITE, stroke_width = 3, start_angle = PI/6.)
+        hex_unit.set_height(self.side_length*2)
+        row_mobs = []
+        for k in range(self.n):
+            # Generate each row
+            row_hexs = VGroup(*[hex_unit.deepcopy() for p in range(k+1)])
+            row_hexs.arrange_submobjects(RIGHT, buff = 0)
+            if k > 0:
+                prev_row_hexs = row_mobs[-1]
+                row_hexs.move_to(prev_row_hexs.get_center() + 1.5 * self.side_length * DOWN)
+            row_mobs.append(row_hexs)
+        for mobs in row_mobs:
+            for mob in mobs:
+                self.add(mob)
+        self.center()
+
+
+class Domino(Rectangle):
+    CONFIG = {
+        "fill_opacity" : 1,
+        "fill_color" : TILE_GREEN,
+        "stroke_width" : 3,
+        "stroke_color" : WHITE,
+        "angle" : 0,
+    }
+    def __init__(self, side_length = 0.7, **kwargs):
+        Rectangle.__init__(self, height = side_length, width = 2*side_length, **kwargs)
+        self.rotate(self.angle)
+
+class HDomino(Domino):
+    pass
+
+class VDomino(Domino):
+    CONFIG = {
+        "fill_color" : TILE_RED,
+        "angle" : PI/2.
+    }
+
+
+class Hexomino(Polygon):
+    CONFIG = {
+        "fill_opacity" : 1,
+        "fill_color" : TILE_GREEN,
+        "stroke_width" : 3,
+        "stroke_color" : WHITE,
+        "angle" : 0,
+    }
+    def __init__(self, side_length = 0.45, **kwargs):
+        hex_l = RegularPolygon(n = 6, color = WHITE, stroke_width = 3, start_angle = PI/6.)
+        hex_l.set_height(side_length*2)
+        hex_r = hex_l.deepcopy()
+        hex_r.rotate(PI).next_to(hex_l, RIGHT, buff = 0)
+        vertices = np.append(hex_l.get_anchors()[:-1], hex_r.get_anchors()[1:-1])
+        vertices = vertices.reshape(-1, 3)
+        Polygon.__init__(self, *vertices, **kwargs)
+        self.rotate(self.angle)
+
+class HHexomino(Hexomino):
+    pass
+
+class RHexomino(Hexomino):
+    CONFIG = {
+        "fill_color" : TILE_RED,
+        "angle" : PI/3.,
+    }
+
+class LHexomino(Hexomino):
+    CONFIG = {
+        "fill_color" : TILE_BLUE,
+        "angle" : -PI/3.,
+    }
+
+
 #####
 ## Main Scenes
 
@@ -1268,7 +1235,7 @@ class PWWIntroScene(Scene):
             ShowCreation(conv_path, run_time = 60, rate_func = linear)
         )
         self.add(conv_path_anim)
-        self.wait(5)   # Subject to change
+        self.wait(5)
         # Show easy path between ideas
         easy_path = Arrow(
             dot_left.get_center(), dot_right.get_center(),
@@ -1675,7 +1642,6 @@ class RigorousYetArcaneProofBasedOn3D(Scene):
             所以每种菱形的个数必然是$n^2$。证毕。""",
             alignment = "",
         )
-        # proof = TextMobject(*(list("ABCDEF")))
         proof.arrange_submobjects(DOWN, aligned_edge = LEFT, buff = 0.3)
         proof[5].set_color(YELLOW)
         proof[-4].set_color(YELLOW)
@@ -1715,7 +1681,7 @@ class RigorousYetArcaneProofBasedOn3D(Scene):
         self.proof.add_updater(lambda mob, dt: mob.shift(rate * dt * UP))
 
     def show_the_counter_example(self):
-        self.wait(8)   # Subject to change
+        self.wait(8)
         counter_example = CalissonRing()
         counter_example.set_stroke(width = 2)
         counter_example.match_height(self.ct_2d)
@@ -1729,7 +1695,7 @@ class RigorousYetArcaneProofBasedOn3D(Scene):
             FadeIn(sur_rect), Write(question_mark),
             run_time = 1.5,
         )
-        self.wait(5)   # Subject to change
+        self.wait(5)
         self.play(
             FadeIn(self.ct_2d),
             FadeOut(VGroup(question_mark, self.quote_marks, counter_example)),
@@ -2324,7 +2290,689 @@ class RandomlyChooseTwoToCompare(AlternateWayToExpressTiling):
         self.wait()
 
 
-## TODO
+class CompareTwoDifferentTilings(MovingCameraScene):
+    CONFIG = {
+        "random_seed" : (5**7)**0,
+    }
+    def construct(self):
+        self.setup_tilings()
+        self.show_some_identical_calissons()
+        self.add_remark_and_change_representation()
+        self.bring_dumbbells_together()
+        self.show_the_reason_of_two_edges_only()
+        self.but_why_loops()
+        self.color_dumbbells_by_their_source()
+        self.zoom_in_on_the_difference()
+        self.change_to_arrow_representation()
+        self.demonstrate_cutting_the_loop()
+        self.generalize_to_all_loops_and_grid_lines()
+
+    def setup_tilings(self):
+        patterns = [generate_pattern(5), generate_pattern(5)]
+        ct_grid = CalissonTilingGrid(
+            side_length = 5, unit_size = 2.4/5,
+            grid_boundary_config = {"stroke_width" : 3, "color" : WHITE},
+            grid_triangles_config = {"opacity" : 0.4},
+        )
+        ct_grid.add_grid_boundary()
+        ct_grid.add_grid_triangles()
+        ct_2d_A, ct_2d_B = ct_2ds = VGroup(*[
+            CalissonTiling2D(
+                CalissonTiling3D(
+                    dimension = 5, pattern = pattern, enable_fill = True,
+                    border_config = {"stroke_width" : 3},
+                    tile_config = {"stroke_width" : 0.5, "stroke_color" : WHITE},
+                ),
+                ct_grid,
+                dumbbell_config = {"point_size" : 0.05, "stem_width" : 0.03}
+            )
+            for pattern in patterns
+        ])
+        text_A, text_B = texts = VGroup(*[TextMobject(c, sheen_direction = DOWN) for c in ("A", "B")])
+        texts.set_color(L_GRADIENT_COLORS)
+        for ct_2d, text, direction in zip(ct_2ds, texts, [LEFT, RIGHT]):
+            ct_2d.to_edge(direction)
+            text.scale(2)
+            text.next_to(ct_2d, UP, buff = 0.5)
+        self.add(ct_2ds)
+        self.wait()
+        self.ct_grid = ct_grid
+        self.ct_2d_A, self.ct_2d_B = self.ct_2ds = ct_2ds
+        self.text_A, self.text_B = self.texts = texts
+        self.ct_diff = CalissonTilingDifference(ct_2d_A, ct_2d_B)
+
+    def show_some_identical_calissons(self):
+        connection_config = {"color" : YELLOW, "stroke_width" : 8, "radius" : 0.5}
+        same_tiles = self.ct_diff.get_same_tiles()
+        line = Line(LEFT, RIGHT, **connection_config)
+        text = TextMobject("相同朝向，相同位置", color = YELLOW)
+        circle_A = Circle(**connection_config).move_to(same_tiles[0][0])
+        circle_B = Circle(**connection_config).move_to(same_tiles[1][0])
+        circle_B.add_updater(
+            lambda m: m.move_to(circle_A.get_center() + self.ct_2d_B.get_center() - self.ct_2d_A.get_center())
+        )
+        line.add_updater(lambda l: l.put_start_and_end_on(circle_A.get_right(), circle_B.get_left()))
+        text.add_updater(lambda t: t.next_to(line, UP))
+        connection_group = VGroup(circle_A, circle_B, line, text)
+        # Show the first example
+        same_tiles[0][0].save_state()
+        same_tiles[1][0].save_state()
+        self.play(
+            FadeIn(connection_group),
+            ApplyMethod(same_tiles[0][0].set_color, YELLOW),
+            ApplyMethod(same_tiles[1][0].set_color, YELLOW),
+        )
+        self.add_foreground_mobjects(connection_group)
+        self.wait(2)
+        self.play(Restore(same_tiles[0][0]), Restore(same_tiles[1][0]))
+        self.wait()
+        # Show a few more examples
+        num_of_pairs = 5
+        indices = random.sample(range(len(same_tiles[0])), num_of_pairs)
+        for i in indices:
+            tile_A, tile_B = same_tiles[0][i], same_tiles[1][i]
+            tile_A.save_state()
+            tile_B.save_state()
+            self.play(
+                ApplyMethod(circle_A.move_to, tile_A.get_center()),
+                ApplyMethod(tile_A.set_color, YELLOW),
+                ApplyMethod(tile_B.set_color, YELLOW),
+            )
+            self.wait()
+            self.play(Restore(tile_A), Restore(tile_B))
+            self.wait()
+        self.remove_foreground_mobjects(connection_group)
+        self.play(FadeOut(connection_group))
+        self.wait()
+
+    def add_remark_and_change_representation(self):
+        # Add names for tilings
+        self.play(LaggedStart(FadeInFromDown, VGroup(self.text_A, self.text_B)))
+        self.wait()
+        # Change to 'dumbbell' representation
+        self.play(TilesShrink(self.ct_2d_A), TilesShrink(self.ct_2d_B), run_time = 3)
+        self.wait()
+        # Add grid for comparison
+        self.play(FadeInFromDown(self.ct_grid))
+        self.wait()
+
+    def bring_dumbbells_together(self):
+        # Classify dumbbells and make style match during the animation
+        sd = self.ct_diff.get_same_dumbbells()
+        sd_copy = sd.deepcopy()
+        sd_copy.add_updater(lambda m: m.match_style(sd))
+        dd = self.ct_diff.get_different_dumbbells()
+        dd_copy = dd.deepcopy()
+        dd_copy.add_updater(lambda m: m.match_style(dd))
+        shift_length = (self.ct_2d_B.get_center()[0] - self.ct_2d_A.get_center()[0])/2.
+        for mob, direction in zip([sd[0], sd[1], dd[0], dd[1]], [RIGHT, LEFT, RIGHT, LEFT]):
+            mob.generate_target()
+            mob.target.shift(shift_length * direction)
+        # Bring the same dumbbells together
+        self.add(sd_copy)
+        self.play(MoveToTarget(sd[0]), MoveToTarget(sd[1]), run_time = 3)
+        self.wait()
+        sd.generate_target()
+        sd.target.set_color(GREY).fade(0.7)
+        self.play(MoveToTarget(sd))
+        self.wait()
+        # Bring the different dumbbells together
+        self.add(dd_copy)
+        self.play(MoveToTarget(dd[0]), MoveToTarget(dd[1]), run_time = 3)
+        self.wait()
+        # Indicate the loops
+        loops = self.ct_diff.get_loops_dumbbells()
+        loops_colors = color_gradient([YELLOW, CYAN], len(loops))
+        loops.generate_target()
+        for loop, color in zip(loops.target, loops_colors):
+            loop.set_color(color)
+        self.text_A.save_state()
+        self.text_A.generate_target()
+        self.text_A.target.set_color([YELLOW, CYAN])
+        self.text_B.save_state()
+        self.text_B.generate_target()
+        self.text_B.target.set_color([YELLOW, CYAN])
+        self.play(*[MoveToTarget(mob) for mob in (loops, self.text_A, self.text_B)], run_time = 2)
+        self.wait()
+        self.play(
+            *[Indicate(loop, color = color, scale_factor = 1.1) for loop, color in zip(loops, loops_colors)],
+            submobject_mode = "lagged_start", lag_factor = 2, run_time = 3,
+        )
+        self.wait()
+        self.sd, self.sd_copy = sd, sd_copy
+        self.dd, self.dd_copy = dd, dd_copy
+        self.loops = loops
+
+    def show_the_reason_of_two_edges_only(self):
+        eg_dd_A = self.loops[5][0]
+        eg_dd_A_copy = self.dd_copy[0][19]
+        eg_dd_B = self.loops[5][1]
+        eg_dd_B_copy = self.dd_copy[1][19]
+        eg_dd_A.save_state()
+        eg_dd_B.save_state()
+        self.bring_to_front(eg_dd_A, eg_dd_B)
+        circle_A = Circle(color = RED)
+        # Show the example dot
+        dot = eg_dd_A.get_start_bell().deepcopy()
+        dot.set_color(RED).scale(1.2)
+        triangle = self.ct_grid.get_grid_triangle_containing_point(dot.get_center())
+        self.play(FocusOn(dot), FadeInFromLarge(dot, scale_factor = 10), run_time = 1.5)
+        self.wait()
+        self.play(Indicate(triangle, color = RED))
+        self.wait()
+        # Show A's contribution
+        radius = get_norm(eg_dd_A.get_start_bell().get_center() - eg_dd_A.get_end_bell().get_center())*0.9
+        circle_A = Circle(radius = radius, color = RED, stroke_width = 5)
+        circle_A.move_to(eg_dd_A_copy)
+        arrow_A = Arrow(
+            eg_dd_A_copy.get_center(), eg_dd_A.get_center(), color = RED,
+            use_rectangular_stem = False, path_arc = PI/2., buff = 0.25,
+        )
+        arrow_A.get_tip().shift(0.03*UR)
+        self.play(ShowCreation(circle_A))
+        self.play(ShowCreation(arrow_A), ApplyMethod(eg_dd_A.set_color, RED))
+        self.wait()
+        # Show B's contribution
+        circle_B = circle_A.deepcopy().move_to(eg_dd_B_copy)
+        arrow_B = Arrow(
+            eg_dd_B_copy.get_center(), eg_dd_B.get_center(), color = RED,
+            use_rectangular_stem = False, path_arc = -PI/2., buff = 0.25,
+        )
+        arrow_B.get_tip().shift(0.03*UL)
+        self.play(ShowCreation(circle_B))
+        self.play(ShowCreation(arrow_B), ApplyMethod(eg_dd_B.set_color, RED))
+        self.wait()
+        # Remove unnecessary stuff
+        self.play(
+            Restore(eg_dd_A), Restore(eg_dd_B),
+            FadeOut(VGroup(dot, circle_A, circle_B, arrow_A, arrow_B))
+        )
+        self.wait()
+
+    def but_why_loops(self):
+        question = TextMobject("所有点都连接两条边$\\Rightarrow$多条回路?", color = RED)
+        question.next_to(self.ct_grid, DOWN, buff = 0.3)
+        self.play(FadeInFrom(question, UP))
+        self.wait()
+        self.remove(question)
+
+    def color_dumbbells_by_their_source(self):
+        self.play(
+            ApplyMethod(self.text_A.set_color, MAGENTA), ApplyMethod(self.dd[0].set_color, MAGENTA),
+            ApplyMethod(self.text_B.set_color, CYAN), ApplyMethod(self.dd[1].set_color, CYAN),
+        )
+        # Tweak the color for bells
+        self.dd_copy.clear_updaters()
+        loops_bells = self.ct_diff.get_loops_bells()
+        loops_bells.generate_target()
+        for bell_pairs in loops_bells:
+            for bell_pair in bell_pairs:
+                for bell in bell_pair:
+                    bell.set_color(GRAY)
+                    bell.fade(0.2)
+        self.play(MoveToTarget(loops_bells, run_time = 3))
+        self.wait()
+
+    def zoom_in_on_the_difference(self):
+        self.camera.frame.save_state()
+        self.b_side_mobs = VGroup(self.sd_copy[1], self.dd_copy[1], self.ct_2d_B.get_border())
+        self.play(
+            FadeOut(self.b_side_mobs),
+            self.camera.frame.set_height, self.ct_grid.get_height() * 1.1,
+            self.camera.frame.move_to, VGroup(self.ct_grid, self.ct_2d_B),
+            run_time = 3,
+        )
+        self.wait()
+        zoom_text_A, zoom_text_B = zoom_texts = VGroup(*[
+            TextMobject(c, color = color)
+            for c, color in zip(["A", "B"], [MAGENTA, CYAN])
+        ])
+        zoom_texts.arrange_submobjects(RIGHT, buff = 1)
+        zoom_texts.next_to(self.b_side_mobs.get_top(), DOWN, buff = 0.1)
+        reminder = TextMobject("A和B的不同部分", "$\\rightarrow$", "回路")
+        reminder.arrange_submobjects(RIGHT, buff = 0.2)
+        reminder.scale(0.75)
+        reminder[0][0].set_color(MAGENTA), reminder[0][2].set_color(CYAN)
+        reminder.next_to(zoom_texts, DOWN, aligned_edge = UP, buff = 0.5)
+        self.play(LaggedStart(FadeInFromDown, zoom_texts))
+        self.wait()
+        self.play(FadeInFromDown(reminder))
+        self.wait()
+        self.play(FadeOut(reminder), FadeOut(zoom_texts))
+        self.wait()
+
+    def change_to_arrow_representation(self):
+        # Choose the longest loop for example
+        loops_dumbbells = self.ct_diff.get_loops_dumbbells()
+        loops_dumbbells.save_state()
+        spec_loop_dumbbells = loops_dumbbells[3]
+        other_loop_dumbbells = VGroup(*[loops_dumbbells[k] for k in (0, 1, 2, 4, 5)])
+        self.play(
+            FocusOn(spec_loop_dumbbells), Indicate(spec_loop_dumbbells, scale_factor = 1),
+            run_time = 1,
+        )
+        self.wait()
+        # Change representation for the last time
+        loops_arrows = self.ct_diff.get_loops_arrows()
+        spec_loop_arrows = loops_arrows[3]
+        other_loop_arrows = VGroup(*[loops_arrows[k] for k in (0, 1, 2, 4, 5)])
+        other_loop_arrows.save_state()
+        self.play(
+            ReplacementTransform(loops_dumbbells, loops_arrows, submobject_mode = "lagged_start"),
+            run_time = 3,
+        )
+        self.play(other_loop_arrows.fade, 0.7, run_time = 1)
+        self.wait()
+        # Remind that calisson, dumbbell and arrow are identical
+        rm_calisson = HRhombus(side_length = 0.5)
+        rm_calisson.set_stroke(width = 2).set_fill(opacity = 1, color = GREEN)
+        rm_dumbbell = Dumbbell(0.25*LEFT, 0.25*RIGHT).set_color(GREEN)
+        rm_arrow = VGroup(
+            Vector(0.5*LEFT).set_color(GREEN),
+            TextMobject("或").scale(0.4),
+            Vector(0.5*RIGHT).set_color(GREEN),
+        ).arrange_submobjects(DOWN, buff = 0.1)
+        rm_group = VGroup(rm_calisson, TextMobject("="), rm_dumbbell, TextMobject("="), rm_arrow)
+        rm_group.arrange_submobjects(RIGHT, buff = 0.3)
+        rm_group.next_to(self.ct_grid, RIGHT, buff = 0.5)
+        self.play(LaggedStart(FadeInFromDown, rm_group))
+        self.wait()
+        self.play(FadeOut(rm_group))
+        self.wait()
+        # Focus on the loop edges and grid triangles it passes.
+        # 'Indicate' just won't do its job on grid_triangles, which is infuriating.
+        # So screw it.
+        spec_loop_arrows_copy = spec_loop_arrows.deepcopy()
+        spec_loop_arrows_copy.submobjects.reverse()
+        repeat_times = 3
+        for k in range(repeat_times):
+            self.play(
+                ApplyMethod(spec_loop_arrows_copy.set_color, YELLOW),
+                rate_func = there_and_back, submobject_mode = "lagged_start", run_time = 2,
+            )
+            self.wait()
+        self.remove(spec_loop_arrows_copy)
+        # And find the hidden connection
+        td = self.ct_grid.get_grid_triangles()[1].deepcopy()
+        tl = self.ct_grid.get_grid_triangles()[0].deepcopy()
+        aa = Vector(0.3*RIGHT).set_color(MAGENTA)
+        ab = Vector(0.3*RIGHT).set_color(CYAN)
+        ta = TextMobject("A").scale(0.5).set_color(MAGENTA)
+        tb = TextMobject("B").scale(0.5).set_color(CYAN)
+        for triangle in (td, tl):
+            triangle.scale(0.7)
+            triangle.set_fill(opacity = 1)
+        relation = VGroup(*[
+            mob.deepcopy()
+            for mob in [td, aa, tl, ab, td, aa, tl, ab, td, aa, TexMobject("\\cdots").scale(0.5)]
+        ])
+        relation.arrange_submobjects(RIGHT, buff = 0.1).move_to(self.b_side_mobs.get_center())
+        for arrow, text in zip(relation[1:-1:2], [ta, tb, ta, tb, ta]):
+            mob = text.deepcopy()
+            mob.next_to(arrow, UP, buff = 0.1)
+            arrow.add(mob)
+        self.play(FadeInFrom(relation, LEFT))
+        self.wait()
+        sur_rect_config = {"stroke_width" : 3, "buff" : 0.05}
+        sur_rects_A = VGroup(*[SurroundingRectangle(mob, **sur_rect_config) for mob in (relation[0:3], relation[4:7])])
+        sur_rects_B = VGroup(*[SurroundingRectangle(mob, **sur_rect_config) for mob in (relation[2:5], relation[6:9])])
+        self.play(ShowCreation(sur_rects_A), submobject_mode = "all_at_once", run_time = 2)
+        self.wait()
+        self.play(ReplacementTransform(sur_rects_A, sur_rects_B), run_time = 2)
+        self.wait()
+        self.play(FadeOutAndShift(relation, LEFT), FadeOutAndShift(sur_rects_B, LEFT))
+        self.wait()
+        self.relation = relation
+        self.loops_dumbbells = loops_dumbbells
+        self.loops_arrows = loops_arrows
+        self.spec_loop_arrows = spec_loop_arrows
+        self.other_loop_arrows = other_loop_arrows
+
+    def demonstrate_cutting_the_loop(self):
+        line_length = self.ct_grid.get_height()*1.2
+        vert_grid_lines = self.ct_grid.get_grid_lines()[12:21]
+        for line in vert_grid_lines:
+            line.set_color(YELLOW).set_stroke(width = 3)
+            line.scale(line_length/line.get_length())
+        eg_grid_line = vert_grid_lines[7]
+        eg_grid_line.set_color(YELLOW)
+        # Show grid line
+        self.play(FocusOn(eg_grid_line), ShowCreation(eg_grid_line), run_time = 1)
+        self.wait()
+        # Show arrows that cross the grid line
+        crossing_arrows = self.ct_diff.get_loop_arrows_crossing_vertical_line(self.spec_loop_arrows, eg_grid_line).deepcopy()
+        crossing_arrows.save_state()
+        circles = VGroup(*[
+            Circle(radius = arrow.get_width()*0.6, color = YELLOW).move_to(arrow)
+            for arrow in crossing_arrows
+        ])
+        self.play(
+            Indicate(crossing_arrows, scale_factor = 1), ShowCreationThenDestruction(circles),
+            submobject_mode = "lagged_start", run_time = 5,
+        )
+        # Move stuff to the space on the right for a better view
+        grid_triangles = VGroup(*[
+            VGroup(
+                self.ct_grid.get_grid_triangle_containing_point(arrow.get_left()),
+                self.ct_grid.get_grid_triangle_containing_point(arrow.get_right()),
+            )
+            for arrow in crossing_arrows
+        ])
+        moving_group = VGroup(grid_triangles, eg_grid_line, crossing_arrows).deepcopy()
+        moving_group.generate_target()
+        moving_group.target.move_to(self.b_side_mobs.get_center()).shift(0.4*DOWN)
+        moving_group.target[::2].scale(1.2)
+        moving_group.target[0].set_fill(opacity = 0.8)
+        moving_group.target[1].scale(0.7)
+        self.play(MoveToTarget(moving_group))
+        self.wait(3)
+        # Two types of crossing the line
+        grid_triangles_copy, eg_grid_line_copy, crossing_arrows_copy = moving_group
+        circles = VGroup(*[
+            Circle(radius = arrow.get_width()*0.6, color = YELLOW).move_to(arrow)
+            for arrow in crossing_arrows_copy
+        ])
+        to_left_arrows = crossing_arrows_copy[::2]
+        to_left_circles = circles[::2].set_color(CYAN)
+        to_right_arrows = crossing_arrows_copy[1::2]
+        to_right_circles = circles[1::2].set_color(MAGENTA)
+        self.play(ShowCreation(to_right_circles))
+        self.wait()
+        self.play(ShowCreation(to_left_circles))
+        self.wait()
+        moving_group.save_state()
+        to_left_text = TextMobject("从右到左\\\\2次").set_color(CYAN).scale(0.65)
+        to_left_text.next_to(eg_grid_line_copy.get_end(), LEFT)
+        to_right_text = TextMobject("从左到右\\\\2次").set_color(MAGENTA).scale(0.65)
+        to_right_text.next_to(eg_grid_line_copy.get_end(), RIGHT)
+        self.play(
+            FadeInFrom(to_left_text, RIGHT), FadeInFrom(to_right_text, LEFT),
+            ApplyMethod(VGroup(to_left_arrows, to_left_circles).shift, LEFT),
+            ApplyMethod(VGroup(to_right_arrows, to_right_circles).shift, RIGHT),
+            run_time = 1,
+        )
+        self.wait()
+        self.play(
+            FadeOutAndShift(to_left_circles, RIGHT), FadeOutAndShift(to_right_circles, LEFT),
+            Restore(moving_group)
+        )
+        self.wait()
+        # Connection between direction and color-changing
+        to_left_color_arrow = Vector(LEFT, color = CB_DARK)
+        to_right_color_arrow = Vector(RIGHT, color = CB_LIGHT)
+        to_left_color_arrow.next_to(to_right_arrows[0].get_left(), DOWN, buff = 0.4, aligned_edge = RIGHT)
+        to_right_color_arrow.next_to(to_right_arrows[0].get_right(), DOWN, buff = 0.4, aligned_edge = LEFT)
+        self.play(GrowArrow(to_left_color_arrow), GrowArrow(to_right_color_arrow))
+        self.wait()
+        to_left_color_text = TextMobject("从浅到深", color = CB_DARK).scale(0.65)
+        to_right_color_text = TextMobject("从深到浅", color = CB_LIGHT).scale(0.65)
+        to_left_color_text.next_to(to_left_text, UP, buff = 0.1)
+        to_right_color_text.next_to(to_right_text, UP, buff = 0.1)
+        self.play(ReplacementTransform(to_right_color_arrow, to_right_color_text))
+        self.wait()
+        self.play(ReplacementTransform(to_left_color_arrow, to_left_color_text))
+        self.wait()
+        # Connection between color-changing and dumbbell's source
+        to_left_source_text = TextMobject("B", color = CYAN).scale(0.8)
+        to_right_source_text = TextMobject("A", color = MAGENTA).scale(0.8)
+        to_left_source_text.move_to(to_left_color_text)
+        to_right_source_text.move_to(to_right_color_text)
+        self.play(ReplacementTransform(to_right_color_text, to_right_source_text))
+        self.wait()
+        self.play(ReplacementTransform(to_left_color_text, to_left_source_text))
+        self.wait()
+        left_group = VGroup(to_left_source_text, to_left_text)
+        left_sur_rect = SurroundingRectangle(left_group)
+        right_group = VGroup(to_right_source_text, to_right_text)
+        right_sur_rect = SurroundingRectangle(right_group)
+        upper_group = VGroup(left_group, right_group)
+        self.play(
+            ShowCreationThenDestruction(left_sur_rect),
+            ShowCreationThenDestruction(right_sur_rect)
+        )
+        self.wait()
+        # Add a few reminders for better illustration
+        reminder_1 = TextMobject("1. 从左到右的箭头数", "=", "从右到左的箭头数")
+        reminder_2 = TextMobject("2. 从左到右", "=", "从深到浅", "=", "来自A")
+        reminder_3 = TextMobject("3. 从右到左", "=", "从浅到深", "=", "来自B")
+        reminders = VGroup(reminder_1, reminder_2, reminder_3).scale(0.5)
+        reminders.arrange_submobjects(DOWN, aligned_edge = LEFT)
+        reminders.next_to(self.ct_grid, RIGHT).shift(UP)
+        reminder_1_arrow = Vector(0.5*DOWN).next_to(reminder_1[1], UP, buff = 0.1)
+        reminder_1_remark = TextMobject("回路的性质", color = YELLOW)
+        reminder_1_remark.scale(0.4).next_to(reminder_1_arrow, UP, buff = 0.1)
+        reminder_2_arrow = Vector(0.3*UP).next_to(reminder_3[1], DOWN, buff = 0.1)
+        reminder_2_remark = TextMobject("正三角形\\\\网格的性质", color = YELLOW)
+        reminder_2_remark.scale(0.4).next_to(reminder_2_arrow, DOWN, buff = 0.1)
+        reminder_3_arrow = Vector(1.0*UP).next_to(reminder_3[3], DOWN, buff = 0.1)
+        reminder_3_remark = TextMobject("回路+网格的性质", color = YELLOW)
+        reminder_3_remark.scale(0.4).next_to(reminder_3_arrow, DOWN, buff = 0.1)
+        reminder_3_figure = self.relation.deepcopy()
+        reminder_3_figure.move_to(self.b_side_mobs).next_to(reminder_3_remark, DOWN, coor_mask = [0, 1, 0])
+        reminders.add(
+            reminder_1_arrow, reminder_2_arrow, reminder_3_arrow,
+            reminder_1_remark, reminder_2_remark, reminder_3_remark, reminder_3_figure,
+        )
+        self.play(FadeOut(moving_group), FadeOut(upper_group), FadeInFromDown(reminders))
+        self.wait()
+        self.play(FadeOut(eg_grid_line), FadeOut(reminders), run_time = 1)
+        self.wait()
+        self.vert_grid_lines = vert_grid_lines
+        self.source_text_B = self.to_left_source_text = to_left_source_text
+        self.source_text_A = self.to_right_source_text = to_right_source_text
+
+    def generalize_to_all_loops_and_grid_lines(self):
+        self.play(Restore(self.other_loop_arrows), run_time = 1)
+        self.wait()
+        self.play(LaggedStart(ShowCreationThenDestruction, self.vert_grid_lines.deepcopy()), run_time = 2)
+        self.wait()
+        # Gather different arrows
+        arrows_A = VGroup()
+        arrows_B = VGroup()
+        source_texts = [self.source_text_A, self.source_text_B]
+        for loop_set in (self.spec_loop_arrows, self.other_loop_arrows):
+            for loop_arrows in loop_set:
+                for line in self.vert_grid_lines:
+                    valid_arrows = self.ct_diff.get_loop_arrows_crossing_vertical_line(loop_arrows, line)
+                    for arrow in valid_arrows:
+                        color = arrow[1].get_color()
+                        if color == Color(MAGENTA):
+                            arrows_A.add(arrow.deepcopy())
+                        elif color == Color(CYAN):
+                            arrows_B.add(arrow.deepcopy())
+        for arrows, source_text in zip([arrows_A, arrows_B], source_texts):
+            arrows.generate_target()
+            arrows.target.arrange_submobjects(DOWN, buff = 0.12)
+            arrows.target.next_to(source_text, DOWN)
+        self.play(
+            *[Write(text, run_time = 1) for text in (self.source_text_A, self.source_text_B)],
+            *[MoveToTarget(arrows, run_time = 3) for arrows in (arrows_A, arrows_B)],
+        )
+        self.wait()
+        # Gather same dumbbells
+        dumbbells_A = VGroup()
+        dumbbells_B = VGroup()
+        for line in self.vert_grid_lines:
+            valid_dumbbells = self.ct_diff.get_loop_arrows_crossing_vertical_line(self.sd[0], line)
+            for dumbbell in valid_dumbbells:
+                dumbbells_A.add(dumbbell)
+                dumbbells_B.add(dumbbell.deepcopy())
+        for dumbbells, arrows, source_text in zip([dumbbells_A, dumbbells_B], [arrows_A, arrows_B], source_texts):
+            dumbbells.generate_target()
+            arrows.generate_target()
+            dumbbells.target.arrange_submobjects(DOWN, buff = 0.12)
+            dumbbells.target.set_fill(opacity = 0.8)
+            group_target = VGroup(dumbbells.target, arrows.target)
+            group_target.arrange_submobjects(RIGHT, aligned_edge = UP)
+            group_target.next_to(source_text, DOWN)
+        self.play(
+            *[MoveToTarget(mobs, run_time = 3) for mobs in (arrows_A, arrows_B, dumbbells_A, dumbbells_B)],
+        )
+        self.wait()
+        # Finally, change back to calisson representation
+        calissons_A = VGroup(*[
+            HRhombus(side_length = 0.2, rhombus_config = {"stroke_width" : 1}).move_to(mob.get_center())
+            for mob in (dumbbells_A.submobjects + arrows_A.submobjects)
+        ])
+        calissons_A.set_fill(opacity = 1)
+        calissons_A.next_to(self.source_text_A, DOWN)
+        calissons_B = calissons_A.deepcopy()
+        calissons_B.next_to(self.source_text_B, DOWN)
+        self.play(
+            *[ShrinkToCenter(db) for dbs in (dumbbells_A, dumbbells_B) for db in dbs ],
+            *[ShrinkToCenter(ar) for ars in (arrows_A, arrows_B) for ar in ars],
+            *[GrowFromCenter(clssn) for clssns in (calissons_A, calissons_B) for clssn in clssns],
+            submobject_mode = "lagged_start",
+            run_time = 3,
+        )
+        calissons_A_sur_rect = SurroundingRectangle(calissons_A)
+        calissons_B_sur_rect = SurroundingRectangle(calissons_B)
+        same_number_text = TextMobject("数目相同", color = YELLOW).scale(0.8)
+        same_number_text.next_to(VGroup(calissons_A_sur_rect, calissons_B_sur_rect), DOWN)
+        self.play(ShowCreation(calissons_A_sur_rect), ShowCreation(calissons_B_sur_rect), run_time = 1)
+        self.play(Write(same_number_text), run_time = 2)
+        self.wait()
+
+
+class Why2RegularMeansAllLoops(Scene):
+    CONFIG = {
+        "dot_config" : {"color" : WHITE, "radius" : 0.1},
+        "line_config" : {"color": BLUE,"stroke_width" : 4},
+        "circle_config" : {"radius" : 0.2, "stroke_width" : 5, "color" : RED,},
+        "random_seed" : 5-7*0,
+    }
+    def setup(self):
+        self.connections = {}
+
+    def construct(self):
+        # Setup title
+        title = TextMobject("所有点都连接两条边", "$\\Rightarrow$", "多条回路")
+        title.arrange_submobjects(RIGHT, buff = 0.5)
+        title.scale(1.2).set_color(YELLOW).to_edge(UP)
+        title[1].scale(1.5)
+        self.add(title[0])
+        # Setup dots
+        num_of_dots = 18
+        dots_centers = [self.get_random_point() for k in range(num_of_dots)]
+        dots_centers.sort(key = lambda p: p[0])
+        dots_centers[4] += DOWN
+        dots = VGroup(*[Dot(center, **self.dot_config) for center in dots_centers])
+        self.add_foreground_mobjects(dots)
+        self.dots = dots
+        # Show the first example
+        circle_5, circle_4, circle_0 = [self.get_circle_around(n) for n in (5, 4, 0)]
+        con_5_0, con_5_4 = self.get_connection(5, 0), self.get_connection(5, 4)
+        self.play(FocusOn(circle_5), ShowCreation(circle_5), run_time = 1)
+        self.wait()
+        self.play(
+            ShowCreation(con_5_0), ShowCreation(con_5_4),
+            ReplacementTransform(circle_5, circle_4), ReplacementTransform(circle_5.deepcopy(), circle_0)
+        )
+        self.wait()
+        # Either they connect together...
+        circle_4.save_state(), circle_0.save_state()
+        con_4_0 = self.get_connection(4, 0)
+        self.play(
+            ApplyMethod(circle_4.fade, 1), ApplyMethod(circle_0.fade, 1),
+            ShowCreation(con_4_0),
+        )
+        self.wait()
+        # or they connect to other points and then converge
+        self.play(Restore(circle_4), Restore(circle_0), Uncreate(con_4_0))
+        self.wait()
+        con_0_2, con_2_1, con_4_3, con_3_1 = [
+            self.get_connection(i, j)
+            for (i, j) in [(0, 2), (2, 1), (4, 3), (3, 1)]
+        ]
+        circle_2, circle_3, circle_1 = [
+            self.get_circle_around(i) for i in (2, 3, 1)
+        ]
+        self.play(
+            ShowCreation(con_0_2), ShowCreation(con_4_3),
+            ReplacementTransform(circle_0, circle_2), ReplacementTransform(circle_4, circle_3)
+        )
+        self.wait()
+        circle_2.generate_target(), circle_3.generate_target()
+        circle_2.target.move_to(circle_1).fade(1)
+        circle_3.target.move_to(circle_1).fade(1)
+        self.play(
+            ShowCreation(con_2_1), ShowCreation(con_3_1),
+            MoveToTarget(circle_2), MoveToTarget(circle_3)
+        )
+        self.wait()
+        # Fade out a closed loop
+        first_closed_loop = VGroup(con_5_0, con_0_2, con_2_1, con_5_4, con_4_3, con_3_1, self.dots[:6])
+        self.play(ApplyMethod(first_closed_loop.set_color, GRAY))
+        self.wait()
+        # Do the same for the remaining points
+        loop_indices_2 = [11, 13, 17, 16, 11]
+        loop_indices_3 = [7, 8, 6, 9, 12, 14, 15, 10, 7]
+        other_closed_loops = VGroup()
+        for loop_indices in (loop_indices_2, loop_indices_3):
+            cl = VGroup()
+            for i in range(len(loop_indices)-1):
+                cl.add(self.get_connection(loop_indices[i], loop_indices[i+1]))
+            other_closed_loops.add(cl)
+        self.play(
+            ShowCreation(other_closed_loops[0], run_time = 1.5),
+            ShowCreation(other_closed_loops[1], run_time = 3),
+        )
+        self.wait()
+        other_closed_loops.add(self.dots[6:])
+        self.play(ApplyMethod(other_closed_loops.set_color, GRAY))
+        self.remove_foreground_mobjects(self.dots)
+        self.wait()
+        # Flash a formal version of this idea
+        bg_rect = FullScreenRectangle(stroke_width = 0, fill_color = BLACK, fill_opacity = 1)
+        formal_proof = ImageWithRemark(
+            "two_regular_means_cycles.png",
+            """
+            MIT OpenCourseWare \\\\
+            \\emph{Combinatorics: The Fine Art of Counting} \\\\
+            Week 9 Lecture Notes – Graph Theory
+            """,
+            image_width = 10, text_width = 5, text_position = UP,
+        )
+        self.add(bg_rect, formal_proof)
+        self.wait()
+        self.remove(bg_rect, formal_proof)
+        self.wait()
+        self.play(FadeInFromDown(title[1:]))
+        self.wait(3)
+
+    def get_random_point(self):
+        x = random.uniform(-5, 5)
+        y = random.uniform(-3, 2)
+        return x*RIGHT + y*UP
+
+    def get_connection(self, i, j):
+        if (i, j) in self.connections.keys():
+            return self.connections[(i, j)]
+        else:
+            line = Line(self.dots[i].get_center(), self.dots[j].get_center(), **self.line_config)
+            self.connections[(i, j)] = line
+            return line
+
+    def get_circle_around(self, i):
+        return Circle(**self.circle_config).move_to(self.dots[i].get_center())
+
+
+class NumberOfEachCalissonWontChange(CompareTwoDifferentTilings):
+    def construct(self):
+        super().setup_tilings()
+        ct_counter = TilesCounter(["?"]*3, tile_stroke_width = 1, height = 3)
+        ct_counter.move_to(ORIGIN)
+        arrow_l = Arrow(ct_counter.get_left(), self.ct_2d_A.get_right(), color = WHITE)
+        arrow_r = Arrow(ct_counter.get_right(), self.ct_2d_B.get_left(), color = WHITE)
+        counter_group = VGroup(ct_counter, arrow_l, arrow_r)
+        self.play(FadeInFromDown(counter_group))
+        self.wait()
+        nums_sur_rect = SurroundingRectangle(ct_counter.get_nums())
+        nums_text = TextMobject("不会改变", color = YELLOW)
+        nums_text.next_to(nums_sur_rect, UP)
+        self.play(ShowCreation(nums_sur_rect))
+        self.play(Write(nums_text))
+        self.wait()
 
 
 class CountingsDoNotChange(Scene):
@@ -2411,7 +3059,6 @@ class TheConclusionsAreDifferent(Scene):
         VGroup(jp_group, np_group, arrow).center()
         jp_rect = SurroundingRectangle(jp_text[-1], color = YELLOW)
         np_rect = SurroundingRectangle(np_text[-1], color = YELLOW)
-
         self.play(FadeInFromDown(np_group))
         self.play(ShowCreation(np_rect))
         self.wait()
@@ -2645,90 +3292,127 @@ class FinalRotationTrick(Scene):
         return np.mean([mob.get_center() for mob in mobs], axis = 0)
 
 
-class ConnectionsToOtherFields(Scene):
+class ABriefSummary(Scene):
     def construct(self):
-        # Original Tiling
-        ct_grid = CalissonTilingGrid(unit_size = 0.4)
-        ct_3d = CalissonTiling3D(
-            dimension = 5, pattern = MAA_PATTERN, enable_fill = True,
-            tile_config = {"stroke_width" : 2},
-        )
-        ct_2d = CalissonTiling2D(
-            ct_3d, ct_grid,
-            dumbbell_config = {"point_size" : 0.06, "stem_width" : 0.03}
-        )
-        ct_2d.move_to(ORIGIN)
-        # Group Theory: Isomorphism - the core of the famous 3D proof (up)
-        gt_iso = TexMobject("L", "=", "\\mathbb{Z}^3")
-        gt_iso.scale(2.2)
-        gt_iso[0].set_color(L_GRADIENT_COLORS)
-        gt_iso[0].set_sheen_direction(DOWN)
-        # Algebra: proof by constructing an invariant (up left corner)
-        rhombi = VGroup(*[
-            RhombusType(rhombus_config = {"stroke_width" : 3,"fill_opacity" : 1})
-            for RhombusType in (RRhombus, HRhombus, LRhombus)
-        ])
-        values = TexMobject("+1", "0", "-1", color = BLACK)
-        alg_invar = VGroup()
-        for rhombus, value in zip(rhombi, values):
-            value.arrange_submobjects(RIGHT, buff = 0.1)
-            value.set_height(0.3)
-            value.move_to(rhombus)
-            alg_invar.add(VGroup(rhombus, value))
-        alg_invar.arrange_submobjects(RIGHT)
-        # Linear Algebra: Matrix - proof using system of linear equations (down left corner)
-        la_matrix = Matrix(
-            np.array([
-                ["1", "1", "1"],
-                ["{1 \\over 2}", "-1", "{1 \\over 2}"],
-                ["-{\\sqrt{3} \\over 2}", "0", "{\\sqrt{3} \\over 2}"],
-            ]),
-            v_buff = 1.4, h_buff = 1.2,
-            element_alignment_corner = ORIGIN
-        )
-        la_matrix.scale(0.8)
-        # Combinatorics: Plane Partition (up right corner)
-        comb_pp = VGroup()
-        for row in MAA_PATTERN:
-            for element in row:
-                comb_pp.add(VGroup(
-                    Square(side_length = 0.5, stroke_width = 1),
-                    TexMobject(str(element))
-                ))
-        comb_pp.arrange_submobjects_in_grid(5, 5, buff = 0)
-        comb_pp_rect = SurroundingRectangle(
-            comb_pp, stroke_width = 5, stroke_color = WHITE, buff = 0
-        )
-        comb_pp.add(comb_pp_rect)
-        # Statistical Mechanics: Dimer Model (down right corner)
-        sm_dimer = ct_2d.deepcopy()
-        sm_dimer.get_border().set_stroke(width = 3)
-        sm_dimer.remove(sm_dimer.get_all_tiles())
-        sm_dimer.add(sm_dimer.get_all_dumbbells())
-        # Arrange those stuffs to make it looks pleasing
-        ct_2d.shift(DOWN)
-        gt_iso.to_edge(UP)
-        left_group = Group(alg_invar, la_matrix)
-        right_group = Group(comb_pp, sm_dimer)
-        for group, direction, buff in zip([left_group, right_group], [LEFT, RIGHT], [1.5, 0.4]):
-            group.arrange_submobjects(DOWN, aligned_edge = -direction, buff = buff)
-            group.to_edge(direction)
-        mobs = VGroup(gt_iso, alg_invar, la_matrix, comb_pp, sm_dimer)
-        start_points = np.array([1.2*UP, 1.5*LEFT+0.5*UP, 2*LEFT-1*UP, 1.5*RIGHT+0.5*UP, 2*RIGHT-1*UP])
-        end_points = np.array([2.4*UP, 3*LEFT+2*UP, 3*LEFT-1.5*UP, 3*RIGHT+2*UP, 3*RIGHT-1.5*UP])
-        arrows = VGroup(*[
-            Arrow(start_point, end_point, buff = 0)
-            for start_point, end_point in zip(start_points, end_points)
-        ])
-        self.add(ct_2d, gt_iso,  arrows[0])
+        frame = PictureInPictureFrame(height = 5)
+        title = TextMobject("小结").scale(1.5)
+        group = VGroup(title, frame)
+        group.arrange_submobjects(DOWN, buff = 0.4).to_edge(UP)
+        self.add(group)
         self.wait()
-        for mob, arrow in zip(mobs[1:], arrows[1:]):
-            self.play(
-                GrowArrow(arrow),
-                Write(mob, submobject_mode = "all_at_once"),
-                run_time = 1)
-            self.wait()
-        self.play(Group(*self.mobjects).shift, 8*UP, run_time = 2)
+
+
+class DijkstrasOriginalNote(Scene):
+    def construct(self):
+        self.demonstrate_using_animations()
+        self.show_original_notes()
+        self.show_epilogue()
+
+    def demonstrate_using_animations(self):
+        ctt_anim = CalissonTiling2D(
+            CalissonTiling3D(
+                dimension = 5, pattern = generate_pattern(5), enable_fill = True,
+                tile_config = {"stroke_width" : 3}
+            ),
+            CalissonTilingGrid(unit_size = 0.5), enable_dumbbells = False,
+        )
+        ctt_anim.move_to((LEFT_SIDE + ORIGIN) / 2.)
+        note_svg = SVGMobject("Note.svg")
+        note_svg.move_to((RIGHT_SIDE + ORIGIN) / 2.)
+        note_svg.set_height(ctt_anim.get_height() * 0.8)
+        note_author = TextMobject("Edsger W. Dijkstra", background_stroke_width = 0)
+        note_author.set_width(1.5)
+        note_author.next_to(note_svg[2], UP, aligned_edge = RIGHT, buff = 0.3)
+        arrow = Arrow(ctt_anim.get_right(), note_svg.get_left(), color = WHITE)
+        note_group = VGroup(note_svg, note_author)
+        question = TexMobject("?")
+        question.scale(2)
+        question.next_to(arrow, UP)
+        ctt_anim_group = VGroup(ctt_anim, note_group, arrow, question)
+        self.add(ctt_anim_group)
+        self.wait()
+        self.ctt_anim_group = ctt_anim_group
+        self.ewd_text = VGroup(*[note_author[k] for k in (0, 6, 8)])
+
+    def show_original_notes(self):
+        upper_notes = Group(*[
+            ImageMobject("%s_EWD1055_%s.png" % (str(k), str(k)))
+            for k in range(5)
+        ])
+        lower_notes = Group(*[
+            ImageMobject("%s_EWD1055c_%s.png" % (str(k+5), str(k)))
+            for k in range(5)
+        ])
+        for notes in (upper_notes, lower_notes):
+            notes.arrange_submobjects(RIGHT)
+            notes.set_height(2.5)
+        upper_title = TextMobject("EWD1055")
+        upper_group = Group(upper_title, upper_notes)
+        lower_title = TextMobject("EWD1055c")
+        lower_group = Group(lower_title, lower_notes)
+        for group in (upper_group, lower_group):
+            group.arrange_submobjects(DOWN, aligned_edge = LEFT)
+        sep_line = DashedLine(upper_group.get_left(), upper_group.get_right())
+        ewd1055_group = Group(upper_group, sep_line, lower_group)
+        ewd1055_group.arrange_submobjects(DOWN)
+        ewd1055_group.to_edge(UP, buff = 0.25)
+        self.play(
+            FadeOut(self.ctt_anim_group),
+            ReplacementTransform(self.ewd_text.deepcopy(), upper_title[:3]),
+            Write(upper_title[3:]),
+            ReplacementTransform(self.ewd_text.deepcopy(), lower_title[:3]),
+            Write(lower_title[3:]),
+            ShowCreation(sep_line),
+            run_time = 2,
+        )
+        self.play(
+            FadeInFromDown(upper_notes), FadeInFromDown(lower_notes),
+            submobject_mode = "lagged_start", run_time = 3,
+        )
+        self.wait()
+        self.upper_notes = upper_notes
+        self.fade_group = Group(upper_title, lower_title, sep_line, upper_notes[:-2], lower_notes)
+
+    def show_epilogue(self):
+        page_3, page_4 = self.upper_notes[-2], self.upper_notes[-1]
+        page_group = Group(page_3, page_4)
+        page_group.generate_target()
+        page_group.target.arrange_submobjects(DOWN, buff = 0.1)
+        page_group.target.scale(1.5)
+        page_group.target.to_edge(RIGHT, buff = 1)
+        self.play(FadeOut(self.fade_group), MoveToTarget(page_group))
+        self.wait()
+        page_rect = Rectangle(height = 3.7, width = 3, stroke_width = 5, color = RED)
+        page_rect.move_to(page_group)
+        page_rect.shift(page_3.get_height() * 0.05 * DOWN)
+        self.play(ShowCreation(page_rect))
+        self.wait()
+        text_rect = page_rect.deepcopy()
+        text_rect.generate_target()
+        text_rect.target.set_height(6, stretch = True)
+        text_rect.target.set_width(8, stretch = True)
+        text_rect.target.to_edge(LEFT, buff = 1).shift(0.5*UP)
+        self.play(MoveToTarget(text_rect))
+        text = TextMobject(
+            "David和Tomei处理这个问题的方式不尽人意。原话是这样的： \\\\",
+            """“证明的思路是把问题化成三维空间中的直观结论。我们不给出证明的 \\\\
+            全部细节，原因有两点，一是我们不想破坏基础直观思想的简洁，二是 \\\\
+            这个借助图片证明的结论并不能立刻用精确的数学语言描述......”\\\\""",
+            "接着，他们就给出了一个复杂的伪证。\\\\",
+            """把平面图形理解成简单的三维结构，这样的思路是有误导性的。举个 \\\\
+            例子，我们把结论从正六边形推广到下面的环状图形：\\\\""",
+            "埃舍尔会很高兴的。",
+            alignment = "",
+        ).arrange_submobjects(DOWN, aligned_edge = LEFT, buff = 0.5).set_width(7.5)
+        text.next_to(text_rect.get_top(), DOWN, buff = 0.4)
+        text[-1].shift(2*DOWN)
+        rings = VGroup(CalissonRing(2, 4).flip().rotate(PI/6.), CalissonRing(2, 4).rotate(-PI/6.))
+        rings.arrange_submobjects(RIGHT, buff = 1.5).set_height(1.6)
+        rings.set_fill(opacity = 0).set_stroke(width = 2)
+        rings.move_to(text_rect)
+        rings.next_to(text[-1], UP, coor_mask = [0, 1, 0])
+        text_group = VGroup(text, rings)
+        self.play(FadeIn(text_group))
         self.wait()
 
 
@@ -2905,6 +3589,227 @@ class GroupTheoryViewRegionsPart(Scene):
         self.wait()
 
 
+class ConnectionsToOtherFields(Scene):
+    def construct(self):
+        # Original Tiling
+        ct_grid = CalissonTilingGrid(unit_size = 0.4)
+        ct_3d = CalissonTiling3D(
+            dimension = 5, pattern = MAA_PATTERN, enable_fill = True,
+            tile_config = {"stroke_width" : 2},
+        )
+        ct_2d = CalissonTiling2D(
+            ct_3d, ct_grid,
+            dumbbell_config = {"point_size" : 0.06, "stem_width" : 0.03}
+        )
+        ct_2d.move_to(ORIGIN)
+        # Group Theory: Isomorphism - the core of the famous 3D proof (up)
+        gt_iso = TexMobject("L", "=", "\\mathbb{Z}^3")
+        gt_iso.scale(2.2)
+        gt_iso[0].set_color(L_GRADIENT_COLORS)
+        gt_iso[0].set_sheen_direction(DOWN)
+        # Algebra: proof by constructing an invariant (up left corner)
+        rhombi = VGroup(*[
+            RhombusType(rhombus_config = {"stroke_width" : 3,"fill_opacity" : 1})
+            for RhombusType in (RRhombus, HRhombus, LRhombus)
+        ])
+        values = TexMobject("+1", "0", "-1", color = BLACK)
+        alg_invar = VGroup()
+        for rhombus, value in zip(rhombi, values):
+            value.arrange_submobjects(RIGHT, buff = 0.1)
+            value.set_height(0.3)
+            value.move_to(rhombus)
+            alg_invar.add(VGroup(rhombus, value))
+        alg_invar.arrange_submobjects(RIGHT)
+        # Linear Algebra: Matrix - proof using system of linear equations (down left corner)
+        la_matrix = Matrix(
+            np.array([
+                ["1", "1", "1"],
+                ["{1 \\over 2}", "-1", "{1 \\over 2}"],
+                ["-{\\sqrt{3} \\over 2}", "0", "{\\sqrt{3} \\over 2}"],
+            ]),
+            v_buff = 1.4, h_buff = 1.2,
+            element_alignment_corner = ORIGIN
+        )
+        la_matrix.scale(0.8)
+        # Combinatorics: Plane Partition (up right corner)
+        comb_pp = VGroup()
+        for row in MAA_PATTERN:
+            for element in row:
+                comb_pp.add(VGroup(
+                    Square(side_length = 0.5, stroke_width = 1),
+                    TexMobject(str(element))
+                ))
+        comb_pp.arrange_submobjects_in_grid(5, 5, buff = 0)
+        comb_pp_rect = SurroundingRectangle(
+            comb_pp, stroke_width = 5, stroke_color = WHITE, buff = 0
+        )
+        comb_pp.add(comb_pp_rect)
+        # Statistical Mechanics: Dimer Model (down right corner)
+        sm_dimer = ct_2d.deepcopy()
+        sm_dimer.get_border().set_stroke(width = 3)
+        sm_dimer.remove(sm_dimer.get_all_tiles())
+        sm_dimer.add(sm_dimer.get_all_dumbbells())
+        # Arrange those stuffs to make it looks pleasing
+        ct_2d.shift(DOWN)
+        gt_iso.to_edge(UP)
+        left_group = Group(alg_invar, la_matrix)
+        right_group = Group(comb_pp, sm_dimer)
+        for group, direction, buff in zip([left_group, right_group], [LEFT, RIGHT], [1.5, 0.4]):
+            group.arrange_submobjects(DOWN, aligned_edge = -direction, buff = buff)
+            group.to_edge(direction)
+        mobs = VGroup(gt_iso, alg_invar, la_matrix, comb_pp, sm_dimer)
+        start_points = np.array([1.2*UP, 1.5*LEFT+0.5*UP, 2*LEFT-1*UP, 1.5*RIGHT+0.5*UP, 2*RIGHT-1*UP])
+        end_points = np.array([2.4*UP, 3*LEFT+2*UP, 3*LEFT-1.5*UP, 3*RIGHT+2*UP, 3*RIGHT-1.5*UP])
+        arrows = VGroup(*[
+            Arrow(start_point, end_point, buff = 0)
+            for start_point, end_point in zip(start_points, end_points)
+        ])
+        self.add(ct_2d, gt_iso,  arrows[0])
+        self.wait()
+        for mob, arrow in zip(mobs[1:], arrows[1:]):
+            self.play(
+                GrowArrow(arrow),
+                Write(mob, submobject_mode = "all_at_once"),
+                run_time = 1)
+            self.wait()
+        self.play(Group(*self.mobjects).shift, 8*UP, run_time = 2)
+        self.wait()
+
+
+class FinalProblem(Scene):
+    def construct(self):     
+        # Add titles
+        sqr_title = TextMobject("正方形网格").set_color(YELLOW)
+        sqr_title.move_to(LEFT_SIDE/2.).to_edge(UP, buff = 0.2)
+        hex_title = TextMobject("正六边形网格").set_color(YELLOW)
+        hex_title.move_to(RIGHT_SIDE/2.).to_edge(UP, buff = 0.2)
+        sep_line = DashedLine(TOP, BOTTOM, color = LIGHT_GRAY)
+        self.play(ShowCreation(sep_line), Write(sqr_title), run_time = 1)
+        self.play(Write(hex_title))
+        self.wait()
+        # Setup square grid and its 1x2 units
+        sqr_grid = VGroup(*[Square(side_length = 0.7, stroke_width = 3) for k in range(16)])
+        sqr_grid.arrange_submobjects_in_grid(4, 4, buff = 0)
+        domino_horiz = VGroup(sqr_grid[0], sqr_grid[1]).deepcopy()
+        domino_horiz.set_fill(opacity = 1, color = TILE_GREEN)
+        domino_vert = VGroup(sqr_grid[0], sqr_grid[4]).deepcopy()
+        domino_vert.set_fill(opacity = 1, color = TILE_RED)
+        sqr_units = VGroup(domino_vert, domino_horiz).scale(0.7).set_stroke(width = 2)
+        sqr_units.arrange_submobjects(DOWN, buff = 0.5)
+        sqr_group = VGroup(sqr_grid, sqr_units)
+        sqr_group.arrange_submobjects(RIGHT, buff = 1).next_to(sqr_title, DOWN, buff = 0.4)
+        # Setup hexagonal grid and its 1x2 units
+        hex_grid = HexagonalGrid()
+        hexomino_ur = VGroup(hex_grid[0], hex_grid[1]).deepcopy()
+        hexomino_ur.set_fill(opacity = 1, color = TILE_RED)
+        hexomino_horiz = VGroup(hex_grid[1], hex_grid[2]).deepcopy()
+        hexomino_horiz.set_fill(opacity = 1, color = TILE_GREEN)
+        hexomino_dr = VGroup(hex_grid[0], hex_grid[2]).deepcopy()
+        hexomino_dr.set_fill(opacity = 1, color = TILE_BLUE)
+        hex_units = VGroup(hexomino_ur, hexomino_horiz, hexomino_dr).scale(0.5).set_stroke(width = 2)
+        hex_units.arrange_submobjects(DOWN, buff = 0.3)
+        hex_group = VGroup(hex_grid, hex_units)
+        hex_group.arrange_submobjects(RIGHT, buff = 1).next_to(hex_title, DOWN, buff = 0.4)
+        self.play(ShowCreation(sqr_grid), ShowCreation(hex_grid))
+        self.wait()
+        self.play(FadeInFrom(sqr_units, LEFT), FadeInFrom(hex_units, LEFT))
+        self.wait()
+        # Tile the grid
+        sqr_tiles_pairs = [
+            (HDomino, [0, 1]), (HDomino, [2, 3]), (VDomino, [4, 8]), (VDomino, [5, 9]),
+            (HDomino, [6, 7]), (HDomino, [10, 11]), (HDomino, [12, 13]), (HDomino, [14, 15]),
+        ]
+        sqr_tiles = VGroup(*[
+            DominoType().move_to(Group(sqr_grid[i], sqr_grid[j]).get_center())
+            for DominoType, (i, j) in sqr_tiles_pairs
+        ])
+        hex_tiles_pairs = [
+            (RHexomino, [0, 1]), (HHexomino, [3, 4]), (LHexomino, [2, 5]),
+            (HHexomino, [6, 7]), (HHexomino, [8, 9]),
+        ]
+        hex_tiles = VGroup(*[
+            HexominoType().move_to(Group(hex_grid[i], hex_grid[j]).get_center())
+            for HexominoType, (i, j) in hex_tiles_pairs
+        ])
+        self.play(
+            LaggedStart(GrowFromCenter, sqr_tiles),
+            LaggedStart(GrowFromCenter, hex_tiles),
+            run_time = 1,
+        )
+        self.wait()
+        # Show the count
+        sqr_counts = VGroup(*[
+            TexMobject(f"\\times {k}").next_to(mob, RIGHT).set_color(mob[0].get_fill_color())
+            for k, mob in zip([2, 6], sqr_units)
+        ])
+        hex_counts = VGroup(*[
+            TexMobject(f"\\times {k}").next_to(mob, RIGHT).set_color(mob[0].get_fill_color())
+            for k, mob in zip([1, 3, 1], hex_units)
+        ])
+        self.play(Write(sqr_counts), Write(hex_counts))
+        self.wait()
+        # Show different tilings and different count
+        new_sqr_grid, new_sqr_units = new_sqr_group = VGroup(sqr_grid, sqr_units).deepcopy()
+        new_sqr_group.shift(3.4*DOWN)
+        new_hex_grid, new_hex_units = new_hex_group = VGroup(hex_grid, hex_units).deepcopy()
+        new_hex_group.shift(3.3*DOWN)
+        new_sqr_tiles_pairs = [
+            (HDomino, [0, 1]), (VDomino, [2, 6]), (VDomino, [3, 7]), (HDomino, [4, 5]),
+            (VDomino, [8, 12]), (VDomino, [9, 13]), (HDomino, [10, 11]), (HDomino, [14, 15]),
+        ]
+        new_sqr_tiles = VGroup(*[
+            DominoType().move_to(Group(new_sqr_grid[i], new_sqr_grid[j]).get_center())
+            for DominoType, (i, j) in new_sqr_tiles_pairs
+        ])
+        new_hex_tiles_pairs = [
+            (LHexomino, [0, 2]), (LHexomino, [1, 4]), (RHexomino, [3, 6]),
+            (HHexomino, [7, 8]), (LHexomino, [5, 9]),
+        ]
+        new_hex_tiles = VGroup(*[
+            HexominoType().move_to(Group(new_hex_grid[i], new_hex_grid[j]).get_center())
+            for HexominoType, (i, j) in new_hex_tiles_pairs
+        ])
+        new_sqr_counts = VGroup(*[
+            TexMobject(f"\\times {k}").next_to(mob, RIGHT).set_color(mob[0].get_fill_color())
+            for k, mob in zip([4, 4], new_sqr_units)
+        ])
+        new_hex_counts = VGroup(*[
+            TexMobject(f"\\times {k}").next_to(mob, RIGHT).set_color(mob[0].get_fill_color())
+            for k, mob in zip([1, 1, 3], new_hex_units)
+        ])
+        new_group = VGroup(
+            new_sqr_units, new_hex_units, new_sqr_tiles, new_hex_tiles,
+            new_sqr_counts, new_hex_counts,
+        )
+        self.play(FadeInFrom(new_group, UP))
+        self.wait()
+        # Done
+        screen_rect = FullScreenFadeRectangle()
+        question_mark = TextMobject("?", color = YELLOW).scale(7)
+        self.play(FadeIn(screen_rect), Write(question_mark))
+        self.wait()
+
+
+class OutroScene(Scene):
+    def construct(self):
+        logo = ImageMobject("logo.png").scale(0.5)
+        author = TextMobject("@Solara570").scale(0.7)
+        author.to_corner(DR)
+        logo.next_to(author, UP)
+        self.add(logo, author)
+        self.wait()
+        # A tiling idea for the outro transition, but it's too bright and distracting.
+        # So screw it as well.
+        
+        # width, height = logo.get_width(), logo.get_height()
+        # for i in range(-4, 5):
+        #     for j in range(-9, 10):
+        #         new_logo = logo.deepcopy()
+        #         new_logo.shift(0.6*i * width*RIGHT + 0.75*j * height*UP)
+        #         self.add(new_logo)
+        # self.wait()
+
+
 #####
 ## Thumbnail
 
@@ -2957,6 +3862,7 @@ class Thumbnail(Scene):
 
     def interpolate_fill_opacity_by_x(self, x, min_val, max_val, inflection = 10.0):
         return self.interpolate_stroke_and_fade_by_x(np.abs(x), min_val, max_val, inflection)
+
 
 
 
