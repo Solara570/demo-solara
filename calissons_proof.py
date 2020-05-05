@@ -1,4 +1,9 @@
-#coding=utf-8
+# Note:
+# The following code utilizes a 'manim' commit that dates back to January 2018.
+# More specifically, commit bfc4251d6d5af62aba476e45d410cd754af68eab. Due to
+# the changes made since then, I suppose most scenes won't play out as intended
+# right now.
+
 
 from big_ol_pile_of_manim_imports import *
 from custom.custom_animations import *
@@ -6,6 +11,7 @@ from custom.custom_helpers import *
 from custom.custom_mobjects import *
 from calissons import *
 from calissons_constants import *
+
 
 #####
 ## Constants
