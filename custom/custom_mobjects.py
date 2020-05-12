@@ -4,15 +4,13 @@ import random
 import itertools as it
 
 from manimlib.constants import *
+from manimlib.mobject.mobject import Group
+from manimlib.mobject.types.image_mobject import ImageMobject
 from manimlib.mobject.types.vectorized_mobject import VMobject, VGroup
-from manimlib.mobject.svg.tex_mobject import TexMobject
+from manimlib.mobject.svg.tex_mobject import TexMobject, TextMobject
 from manimlib.mobject.geometry import Rectangle, Square, Annulus, RegularPolygon
 from manimlib.once_useful_constructs.fractals import fractalify
 from manimlib.utils.space_ops import get_norm
-
-# self.skip_animations
-# self.force_skipping()
-# self.revert_to_original_skipping_status()
 
 
 ## Some handmade control buttons
@@ -173,6 +171,118 @@ class FakeQEDSymbol(VMobject):
             order = self.order, dimension = 1+self.jagged_percentage
         )
         self.add(fake_qed)
+
+
+## Image with text - title, name, source, etc.
+class ImageWithRemark(Mobject):
+    CONFIG = {
+        "image_width" : 3,
+        "text_width" : None,
+        "text_position" : DOWN,
+        "text_aligned_edge" : ORIGIN,
+        "text_buff" : 0.2,
+    }
+    def __init__(self, image_filename, remark_text, **kwargs):
+        self.image_filename = image_filename
+        self.remark_text = remark_text
+        Mobject.__init__(self, **kwargs)
+
+    def generate_points(self):
+        image = ImageMobject(self.image_filename)
+        remark = TextMobject(self.remark_text)
+        if self.image_width is not None:
+            image.set_width(self.image_width)
+        if self.text_width is not None:
+            remark.set_width(self.text_width)
+        remark.next_to(
+            image, self.text_position,
+            aligned_edge = self.text_aligned_edge, buff = self.text_buff
+        )
+        self.add(image)
+        self.add(remark)
+        self.center()
+        self.image = image
+        self.remark = remark
+
+    def get_image(self):
+        return self.image
+
+    def get_remark(self):
+        return self.remark
+
+
+## 8x8 Chess board
+class ChessBoard(VMobject):
+    CONFIG = {
+        "height" : 5,
+    }
+    def __init__(self, **kwargs):
+        VMobject.__init__(self, **kwargs)
+        self.chess_pieces = []
+        self.add_board()
+        self.add_border()
+        self.add_labels()
+        self.set_height(self.height)
+
+    def add_board(self):
+        board = VGroup(*[
+            Square(
+                side_length = 0.8,
+                stroke_width = 0, fill_opacity = 1,
+                fill_color = CB_DARK if (i+j)%2!=0 else CB_LIGHT
+            )
+            for i in range(8) for j in range(8)
+        ])
+        board.arrange_submobjects_in_grid(8, 8, buff = 0)
+        self.add(board)
+        self.board = board
+
+    def add_border(self):
+        border = Square(side_length = self.board.get_height())
+        border.move_to(self.board.get_center())
+        self.add(border)
+        self.border = border
+
+    def get_square(self, position = "a1"):
+        l1, l2 = position.lower()
+        row = ord(l1) - 97
+        column = int(l2) - 1
+        return self.board[(7-column)*8+row]
+
+    def add_labels(self):
+        numeral_labels = VGroup(*[
+            TextMobject(str(i+1)).next_to(self.get_square("a"+str(i+1)), LEFT)
+            for i in range(8)
+        ])
+        alphabetical_labels = TextMobject(*[chr(97+i) for i in range(8)])
+        alphabetical_labels.next_to(self.border, DOWN, buff = 0.15)
+        for i, label in enumerate(alphabetical_labels):
+            label.next_to(self.get_square(chr(97+i)+"1"), DOWN, coor_mask = [1, 0, 0])
+        self.add(numeral_labels, alphabetical_labels)
+        self.numeral_labels = numeral_labels
+        self.alphabetical_labels = alphabetical_labels
+
+    def add_piece(self, position, camp_letter, piece_letter):
+        piece = ChessPiece(camp_letter.upper(), piece_letter.upper())
+        piece.set_height(self.border.get_height()/8)
+        piece.move_to(self.get_square(position))
+        self.chess_pieces.append(piece)
+        self.add(piece)
+
+    def get_pieces(self):
+        return Group(*self.chess_pieces)
+
+    def get_labels(self):
+        return VGroup(*(self.numeral_labels.submobjects + self.alphabetical_labels.submobjects))
+
+    def get_border(self):
+        return self.border
+
+
+class ChessPiece(ImageMobject):
+    def __init__(self, camp_letter, piece_letter, **kwargs):
+        png_filename = "ChessPiece_" + camp_letter + piece_letter + ".png"
+        ImageMobject.__init__(self, png_filename)
 
 
 ## Sudoku board
