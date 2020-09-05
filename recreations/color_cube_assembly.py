@@ -111,7 +111,7 @@ class ColorCubeAssembly(ThreeDScene):
         },
         "default_scaling_factor" : 2.5,
     }
-    def construct(self):
+    def setup(self):
         # Setup cubes and its colors
         cubes = VGroup(*[
             Cube(
@@ -126,6 +126,7 @@ class ColorCubeAssembly(ThreeDScene):
         self.add(cubes)
         self.cubes = cubes
 
+    def construct(self):
         # Time to transfrom!
         self.set_camera_orientation(phi = PI/3, theta = -PI/3)
         self.begin_ambient_camera_rotation(rate = 0.01)
@@ -281,4 +282,10 @@ class ColorCubeAssembly(ThreeDScene):
             run_time = 2
         )
 
+
+class Thumbnail(ColorCubeAssembly):
+    def construct(self):
+        self.set_camera_orientation(phi = PI/3, theta = -PI/3)
+        self.scatter_cubes(factor = 2.2)
+        self.wait()
 
