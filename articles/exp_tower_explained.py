@@ -1,6 +1,6 @@
 ##########################################################
 #  A brief introduction on power tower, i.e. tetration.  #
-#         https://zhuanlan.zhihu.com/p/106874090         #
+#         https://zhuanlan.zhihu.com/p/179279978         #
 ##########################################################
 
 # It's a mixture of ancient (relatively) and modern (also relatively) code.
