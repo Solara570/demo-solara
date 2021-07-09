@@ -236,10 +236,10 @@ class PanBalance(VGroup):
         should_wiggle = kwargs.get("should_wiggle", False)
         anims = [
             self.get_beam_rotation_animation(angle, should_wiggle=should_wiggle),
-            Animation(self.get_pans()),
-            Animation(self.get_stand()),
-            Animation(self.get_axles()),
-            Animation(self.get_screen()),
+            Animation(self.get_pans(), suspend_mobject_updating=False),
+            Animation(self.get_stand(), suspend_mobject_updating=False),
+            Animation(self.get_axles(), suspend_mobject_updating=False),
+            Animation(self.get_screen(), suspend_mobject_updating=False),
         ]
         if screen_text_anim_type is not None:
             if screen_text_anim_type == "hide":
@@ -444,8 +444,92 @@ class PossibilityBranch(VGroup):
         self.shift(target_pos - curr_pos)
         return self
 
+
+class TexMatrix(Matrix):
+    CONFIG = {
+        "v_buff": 0.7,
+        "h_buff": 1.05,
+        "height": None,
+        "scale_factor": None,
+    }
+
+    def __init__(self, matrix, **kwargs):
+        map_to_string_matrix = [list(map(str, row)) for row in matrix]
+        super().__init__(map_to_string_matrix, **kwargs)
+        if self.height is not None:
+            self.set_height(self.height)
+        elif self.scale_factor is not None:
+            self.scale(self.scale_factor)
+
+    def get_entry(self, row_ind, col_ind):
+        return self.mob_matrix[row_ind][col_ind][0]
+
+
+class WeighingMatrix(TexMatrix):
+    CONFIG = {
+        "height": 1.5,
+    }
+
+
+class HVector(TexMatrix):
+    CONFIG = {
+        "h_buff": 1,
+        "scale_factor": 0.8,
+    }
+
+    def __init__(self, *entries, **kwargs):
+        self.entries = entries
+        super().__init__([list(entries)], **kwargs)
+
+    def get_column(self, col_ind):
+        return self.get_entry(0, col_ind)
+
+    def get_columns(self):
+        return VGroup(*[
+            self.get_column(k)
+            for k in range(len(self.entries))
+        ])
+
+    def get_entries(self):
+        return self.get_columns()
+
+
+class VVector(TexMatrix):
+    CONFIG = {
+        "v_buff": 0.65,
+        "scale_factor": 0.8,
+    }
+
+    def __init__(self, *entries, **kwargs):
+        self.entries = entries
+        super().__init__([[entry] for entry in entries], **kwargs)
+
+    def get_row(self, row_ind):
+        return self.get_entry(row_ind, 0)
+
+    def get_rows(self):
+        return VGroup(*[
+            self.get_row(k)
+            for k in range(len(self.entries))
+        ])
+
+    def get_entries(self):
+        return self.get_rows()
+
+
+class LargeBrackets(VGroup):
+    def __init__(self, mob):
+        super().__init__()
+        brackets = TexText("\\Huge(", "\\Huge)")
+        brackets.match_height(mob, stretch=True)
+        brackets[0].next_to(mob, LEFT)
+        brackets[1].next_to(mob, RIGHT)
+        self.add(brackets)
+        self.brackets = brackets
+
+
 #####
-# Scenes
+# Part 1 Scenes
 
 
 class IntroTo12CoinsPuzzle(Scene):
@@ -456,7 +540,7 @@ class IntroTo12CoinsPuzzle(Scene):
 
     def show_coins(self):
         # Show 12 coins
-        coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
         coins.arrange(RIGHT, buff=COIN_BUFF)
         self.play(
             AnimationGroup(
@@ -538,7 +622,7 @@ class PauseAndThinkAboutIt(Scene):
 
 class ShowPossibleApproaches(Scene):
     def setup(self):
-        coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
         coins.arrange(RIGHT, buff=COIN_BUFF)
         coins.shift(1.5 * DOWN)
         pb = PanBalance()
@@ -606,7 +690,7 @@ class ShowPossibleApproaches(Scene):
         self.wait()
         # If it's balanced, then all coins are real
         real_coins = VGroup(*[
-            RealCoin(str(k + 1)).move_to(coin)
+            RealCoin(k + 1).move_to(coin)
             for k, coin in enumerate(coins)
         ])
         pb.put_coins_on_left_pan(left_6_coins, [3, 3], add_updater=True)
@@ -678,7 +762,7 @@ class NarrowDownThePossibilities(Scene):
     }
 
     def setup(self):
-        coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
         coins.arrange(RIGHT, buff=COIN_BUFF)
         self.add(coins)
         self.coins = coins
@@ -690,11 +774,11 @@ class NarrowDownThePossibilities(Scene):
     def show_all_possibilities_and_codes(self):
         # Arrange stuff
         light_coins = VGroup(*[
-            LighterCoin(str(k + 1)).move_to(coin)
+            LighterCoin(k + 1).move_to(coin)
             for k, coin in enumerate(self.coins)
         ])
         heavy_coins = VGroup(*[
-            HeavierCoin(str(k + 1)).move_to(coin)
+            HeavierCoin(k + 1).move_to(coin)
             for k, coin in enumerate(self.coins)
         ])
         real_coin = RealCoin("")
@@ -832,7 +916,7 @@ class RevisitHalfAndHalfGrouping(Scene):
     }
 
     def setup(self):
-        coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
         coins.arrange(RIGHT, buff=COIN_BUFF)
         pb = PanBalance(height=self.pan_balance_height)
         pb.next_to(TOP, DOWN, buff=1.5)
@@ -855,7 +939,7 @@ class RevisitHalfAndHalfGrouping(Scene):
         balance_poss = RealCoin("\\text{A}")
         balance_poss.next_to(self.pb, DOWN, buff=1.5)
         real_coins = VGroup(*[
-            RealCoin(str(k + 1)).move_to(coin)
+            RealCoin(k + 1).move_to(coin)
             for k, coin in enumerate(coins)
         ])
         self.play(FadeIn(real_coins), FadeIn(balance_poss))
@@ -962,7 +1046,7 @@ class AssessingAWeighingMethod(Scene):
 
     def setup(self):
         # Setup coins and pan balance
-        coins = VGroup(*[Coin(str(k)) for k in range(1, 3)])
+        coins = VGroup(*[Coin(k) for k in range(1, 3)])
         coins.arrange(RIGHT, buff=COIN_BUFF)
         pb = PanBalance(height=self.pan_balance_height)
         pb.next_to(TOP, DOWN)
@@ -1049,7 +1133,7 @@ class AssessingAWeighingMethod(Scene):
         # Free existing coins, add extra coins, and set up animations
         for coin in self.coins:
             coin.clear_updaters()
-        extra_coins = VGroup(*[Coin(str(k)) for k in range(3, 9)])
+        extra_coins = VGroup(*[Coin(k) for k in range(3, 9)])
         extra_coins.next_to(pb, UP, buff=0.5)
         self.add(extra_coins)
         left_coins = VGroup(*self.coins, *extra_coins[:2])
@@ -1287,9 +1371,9 @@ class RevealTheFirstWeighing(Scene):
         # Setup pan balance and coins
         pb = PanBalance(height=self.pan_balance_height)
         pb.next_to(TOP, UP).to_edge(LEFT, buff=0.4)
-        left_coins = VGroup(*[Coin(str(k)) for k in range(1, 5)])
-        right_coins = VGroup(*[Coin(str(k)) for k in range(5, 9)])
-        idle_coins = VGroup(*[Coin(str(k)) for k in range(9, 13)])
+        left_coins = VGroup(*[Coin(k) for k in range(1, 5)])
+        right_coins = VGroup(*[Coin(k) for k in range(5, 9)])
+        idle_coins = VGroup(*[Coin(k) for k in range(9, 13)])
         idle_coins.arrange(RIGHT, buff=COIN_BUFF)
         pb.put_coins_on_left_pan(left_coins, add_updater=True)
         pb.put_coins_on_right_pan(right_coins, add_updater=True)
@@ -1345,7 +1429,7 @@ class WhatIfItStaysBalanced(Scene):
         # Setup pan balance and coins
         pb = PanBalance(height=self.pan_balance_height)
         pb.next_to(TOP, UP).to_edge(LEFT, buff=0.4)
-        weighing_coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        weighing_coins = VGroup(*[Coin(k) for k in range(1, 13)])
         left_coins = VGroup(*weighing_coins.submobjects[:4])
         right_coins = VGroup(*weighing_coins.submobjects[4:-4])
         idle_coins = VGroup(*weighing_coins.submobjects[-4:])
@@ -1391,7 +1475,7 @@ class WhatIfItStaysBalanced(Scene):
         self.play(self.pb.get_wiggle_animation("hide"))
         self.wait()
         real_one_to_eight_coins = VGroup(*[
-            RealCoin(str(k + 1)).move_to(coin)
+            RealCoin(k + 1).move_to(coin)
             for k, coin in enumerate(self.weighing_coins[:8])
         ])
         self.play(
@@ -1552,7 +1636,7 @@ class WhatIfItTiltsLeft(WhatIfItStaysBalanced):
         self.play(self.pb.get_tilt_left_animation("hide"))
         self.wait()
         real_nine_to_twelve_coins = VGroup(*[
-            RealCoin(str(k + 9)).move_to(coin)
+            RealCoin(k + 9).move_to(coin)
             for k, coin in enumerate(self.weighing_coins[-4:])
         ])
         self.play(
@@ -1731,7 +1815,7 @@ class WhatIfItTiltsLeft(WhatIfItStaysBalanced):
     def show_a_possible_third_weighing(self):
         # Some possibilities are eliminated if it tilts right.
         additional_real_coins = VGroup(*[
-            RealCoin(str(ind + 1)).move_to(self.weighing_coins[ind])
+            RealCoin(ind + 1).move_to(self.weighing_coins[ind])
             for ind in (0, 1, 3, 4, 7)
         ])
         self.play(
@@ -1796,7 +1880,7 @@ class WhatIfItTiltsLeft(WhatIfItStaysBalanced):
         self.wait()
         # Only one possibility remains
         final_real_coins = VGroup(*[
-            RealCoin(str(ind + 1)).move_to(self.weighing_coins[ind])
+            RealCoin(ind + 1).move_to(self.weighing_coins[ind])
             for ind in (2, 6)
         ])
         lighter_coin = VGroup(LighterCoin("6"))
@@ -1810,7 +1894,7 @@ class WhatIfItTiltsLeft(WhatIfItStaysBalanced):
             run_time=2,
         )
         self.wait()
-        # Now the exciting identity revealing!
+        # Now reveal the identity of the counterfeit
         coin_6.clear_updaters()
         other_mobs = Group(*self.mobjects)
         other_mobs.remove(coin_6)
@@ -1916,10 +2000,10 @@ class SameAppliesToMostSimilarPuzzles(Scene):
         text_group.scale(0.8)
         text_group.next_to(pb, RIGHT, aligned_edge=DOWN, buff=0.6)
         # Coins
-        new_coins = VGroup(*[Coin(str(k)) for k in range(1, 40)])
+        new_coins = VGroup(*[Coin(k) for k in range(1, 40)])
         new_coins.arrange_in_grid(3, 13, buff=COIN_BUFF)
         new_coins.to_edge(DOWN)
-        old_coins = VGroup(*[Coin(str(k)) for k in range(1, 13)])
+        old_coins = VGroup(*[Coin(k) for k in range(1, 13)])
         old_coins.arrange(RIGHT, buff=COIN_BUFF)
         old_coins.move_to(new_coins)
         # Setup the old problem
@@ -1976,7 +2060,7 @@ class ABetterApproachTeaser(Scene):
         pbs.arrange(RIGHT, buff=0.5)
         coin_sets = VGroup(*[
             VGroup(*[
-                Coin(str(k), **self.coin_config)
+                Coin(k, **self.coin_config)
                 for k in coin_numbers
             ])
             for coin_numbers in [
@@ -2015,5 +2099,1855 @@ class ABetterApproachTeaser(Scene):
         self.wait()
 
 
-class Thumbnail(IntroTo12CoinsPuzzle):
+class ThumbnailPart1(IntroTo12CoinsPuzzle):
     pass
+
+#####
+# Part 2 Scenes
+
+
+class RecapOnLastVideo(Scene):
+    def construct(self):
+        self.recap_problem()
+        self.can_we_avoid_these_branches()
+
+    def recap_problem(self):
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
+        coins.arrange(RIGHT, buff=COIN_BUFF)
+        pb = PanBalance()
+        pb.to_corner(UL, buff=0.4)
+        pb.shift(0.5 * DOWN)
+        weighing_text = TexText("3次称量机会", color=YELLOW)
+        counterfeit_text = TexText("至多1枚假币", color=YELLOW)
+        questions = BulletedList("是否有假币？", "假币的编号？", "是轻还是重？")
+        questions.arrange(DOWN, buff=0.2)
+        text_group = VGroup(weighing_text, counterfeit_text, questions)
+        text_group.arrange(DOWN, aligned_edge=LEFT, buff=0.4)
+        text_group.scale(0.8)
+        text_group.next_to(pb, RIGHT, aligned_edge=DOWN, buff=0.6)
+        # Show coins, pan balance and objectives
+        self.play(
+            AnimationGroup(*[
+                GrowFromCenter(coin)
+                for coin in coins
+            ], lag_ratio=0.1, run_time=2)
+        )
+        self.wait()
+        pb.shift(5 * UP)
+        self.play(
+            pb.animate.shift(5 * DOWN),
+            coins.animate.shift(2 * DOWN),
+        )
+        self.wait()
+        self.play(Write(weighing_text))
+        self.wait()
+        self.play(Write(counterfeit_text))
+        self.wait()
+        self.play(Write(questions))
+        self.wait()
+
+    def can_we_avoid_these_branches(self):
+        # Clear everything for the next scene
+        self.remove(*self.mobjects)
+        avoid_text = TexText("能否避免这种“分支结构”？", color=YELLOW)
+        avoid_text.scale(1.2)
+        avoid_text.to_edge(DOWN, buff=0.5)
+        self.play(Write(avoid_text))
+        self.wait()
+
+
+class HowToDesignAWorkaround(Scene):
+    def construct(self):
+        proc_texts = VGroup(*[
+            TexText(text)
+            for text in [
+                "第一次称量", "第一次称量结果",
+                "第二次称量", "第二次称量结果",
+                "第三次称量", "第三次称量结果",
+            ]
+        ])
+        proc_texts.arrange(DOWN, buff=1.2)
+        proc_texts.to_edge(UP)
+        arrows = VGroup(*[
+            Arrow(proc_texts[k].get_bottom(), proc_texts[k + 1].get_top(), color=WHITE)
+            for k in range(len(proc_texts) - 1)
+        ])
+        arrows[1::2].set_color(YELLOW)
+        infl_texts = VGroup(*[
+            TexText("影响", color=YELLOW).scale(0.8).next_to(arrow)
+            for arrow in arrows[1::2]
+        ])
+        infl_groups = VGroup(*[
+            VGroup(arrow, infl_text)
+            for arrow, infl_text in zip(arrows[1::2], infl_texts)
+        ])
+        proc_groups = VGroup(*[
+            VGroup(weighing_text, arrow, result_text)
+            for weighing_text, arrow, result_text in zip(
+                proc_texts[::2], arrows[::2], proc_texts[1::2]
+            )
+        ])
+        # Setup
+        self.add(proc_texts, arrows, infl_texts)
+        self.wait()
+        # It's better if previous results don't influence next weighings
+        crosses = VGroup(*[Cross(infl_group) for infl_group in infl_groups])
+        crosses.set_stroke(width=10)
+        self.play(ShowCreation(crosses, lag_ratio=0.2), run_time=2)
+        self.wait()
+        self.play(FadeOut(VGroup(infl_groups, crosses)), run_time=2)
+        self.wait()
+        # The idea is to integrate all weighing outcomes and analyse result
+        proc_groups.generate_target()
+        proc_groups.target.arrange(RIGHT, buff=0.8)
+        proc_groups.target.shift(2 * UP)
+        self.play(MoveToTarget(proc_groups))
+        self.wait()
+        final_lines = VGroup(*[
+            Line(group.get_bottom() + 0.2 * DOWN, 0.5 * DOWN, stroke_width=5)
+            for group in proc_groups
+        ])
+        final_arrow = Arrow(0.5 * DOWN, 1.5 * DOWN, fill_color=WHITE, buff=0)
+        result_text = TexText("与假币有关的信息", color=YELLOW)
+        result_text.next_to(final_arrow, DOWN)
+        self.play(ShowCreation(final_lines))
+        self.play(GrowArrow(final_arrow))
+        self.wait()
+        self.play(Write(result_text))
+        self.wait()
+        self.play(
+            Flash(result_text.get_left() + 0.4 * LEFT, color=GREEN, line_length=0.15),
+            Flash(result_text.get_right() + 0.4 * RIGHT, color=GREEN, line_length=0.15),
+        )
+        self.wait()
+        # Indicate important stuff
+        weighing_rects = VGroup(*[
+            SurroundingRectangle(text) for text in proc_texts[::2]
+        ])
+        result_rect = SurroundingRectangle(VGroup(proc_texts[1::2], result_text))
+        self.play(
+            ShowCreationThenDestruction(weighing_rects),
+            lag_ratio=0.2, run_time=3,
+        )
+        self.wait()
+        self.play(ShowCreation(result_rect), run_time=2)
+        self.wait()
+        # Now focus on a single weighing, and transform it into an expression
+        curr_mobs = Group(*self.mobjects)
+        pb = PanBalance()
+        pb.to_corner(UL, buff=0.5)
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
+        coins.arrange_in_grid(3, 4, buff=COIN_BUFF)
+        coins.next_to(pb, RIGHT, buff=0.5)
+        pb.put_coins_on_left_pan(coins[:4])
+        pb.put_coins_on_right_pan(coins[4:-4])
+        pb_mobs = VGroup(pb, coins)
+        pb_mobs.shift(FRAME_HEIGHT * DOWN)
+        self.play(
+            curr_mobs.animate.shift(FRAME_HEIGHT * UP),
+            pb_mobs.animate.shift(FRAME_HEIGHT * UP),
+            run_time=2,
+        )
+        self.add(pb, coins)
+        self.wait()
+
+
+class PanBalanceToMatrixAbstraction(Scene):
+    def setup(self):
+        # Setup pan balance to match with the last scene
+        pb = PanBalance()
+        pb.to_corner(UL, buff=0.5)
+        coins = VGroup(*[Coin(k) for k in range(1, 13)])
+        coins.arrange_in_grid(3, 4, buff=COIN_BUFF)
+        coins.next_to(pb, RIGHT, buff=0.5)
+        coins.save_state()
+        left_coins, right_coins, idle_coins = coins[:4], coins[4:-4], coins[-4:]
+        pb.put_coins_on_left_pan(left_coins, add_updater=True)
+        pb.put_coins_on_right_pan(right_coins, add_updater=True)
+        self.add(pb, left_coins, right_coins, idle_coins)
+        self.pb = pb
+        self.left_coins = left_coins
+        self.right_coins = right_coins
+        self.idle_coins = idle_coins
+        self.coins = coins
+
+    def construct(self):
+        self.show_what_pan_balance_does()
+        self.replace_pan_balance_with_expression()
+        self.define_weighing_matrix_and_result_vector()
+        self.define_standard_vector_and_bias_vector()
+        self.problem_recap()
+
+    def show_what_pan_balance_does(self):
+        # Pan balance can measure torque or mass
+        left_torque, right_torque = torque_texts = VGroup(
+            TexText("左边的", "力矩"), TexText("右边的", "力矩")
+        )
+        left_mass, right_mass = mass_texts = VGroup(
+            TexText("左边的", "质量"), TexText("右边的", "质量")
+        )
+        torque_mass_texts = VGroup(left_torque, right_torque, left_mass, right_mass)
+        for k, text in enumerate(torque_mass_texts):
+            text.set_color(YELLOW)
+            pan = self.pb.get_left_pan() if k % 2 == 0 else self.pb.get_right_pan()
+            text.next_to(pan, DOWN, buff=3.5)
+        self.play(Write(left_torque), Write(right_torque))
+        self.wait()
+        self.play(
+            FadeTransform(left_torque[1], left_mass[1]),
+            FadeTransform(right_torque[1], right_mass[1])
+        )
+        self.remove(torque_texts)
+        self.add(mass_texts)
+        self.wait()
+        # It tilts according to the masses on both sides
+        greater_sign = Tex(">", color=YELLOW)
+        greater_sign.scale(1.5)
+        greater_sign.move_to(mass_texts.get_center())
+        self.play(
+            self.pb.get_tilt_left_animation("hide"),
+            GrowFromCenter(greater_sign),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            self.pb.get_balance_animation("show"),
+            FadeOut(greater_sign),
+            run_time=2,
+        )
+        self.wait()
+        self.mass_texts = mass_texts
+
+    def replace_pan_balance_with_expression(self):
+        left_side = Tex("m_1", "+", "m_2", "+", "m_3", "+", "m_4")
+        right_side = Tex("m_5", "+", "m_6", "+", "m_7", "+", "m_8")
+        left_side.move_to(self.mass_texts[0])
+        right_side.move_to(self.mass_texts[1])
+        left_side.generate_target()
+        right_side.generate_target()
+        left_side.fade(1).match_width(self.left_coins).move_to(self.left_coins)
+        right_side.fade(1).match_width(self.right_coins).move_to(self.right_coins)
+        self.play(
+            MoveToTarget(left_side, lag_ratio=0.1),
+            MoveToTarget(right_side, lag_ratio=0.1),
+            FadeOut(self.mass_texts),
+            run_time=2,
+        )
+        self.wait()
+        # Show possible outcomes and the corresponding expressions
+        signs = VGroup(*[Tex(symbol) for symbol in (">", "=", "<", "?")])
+        for sign in signs:
+            sign.scale(1.2)
+            sign.move_to(self.mass_texts.get_center())
+        self.play(
+            self.pb.get_tilt_left_animation("hide"),
+            GrowFromCenter(signs[0]),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            self.pb.get_balance_animation("hide"),
+            Transform(signs[0], signs[1]),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            self.pb.get_tilt_right_animation("hide"),
+            Transform(signs[0], signs[2]),
+            run_time=2,
+        )
+        self.wait()
+        # Reset
+        self.play(
+            self.pb.get_balance_animation("show"),
+            ReplacementTransform(signs[0], signs[-1]),
+            run_time=2,
+        )
+        # Setup the whole expression
+        question_mark = signs[-1]
+        final_expr = Tex(
+            "&(-1)", "\\cdot ", "m_{1}", "+", "(-1)", "\\cdot ", "m_{2}", "+",
+            "(-1)", "\\cdot ", "m_{3}", "+", "(-1)", "\\cdot ", "m_{4}", "+\\\\",
+            "&1", "\\cdot ", "m_{5}", "+", "1", "\\cdot ", "m_{6}", "+",
+            "1", "\\cdot ", "m_{7}", "+", "1", "\\cdot ", "m_{8}", "+\\\\",
+            "&0", "\\cdot ", "m_{9}", "+", "0", "\\cdot ", "m_{10}", "+",
+            "0", "\\cdot ", "m_{11}", "+", "0", "\\cdot ", "m_{12}",
+            alignment="",
+        )
+        final_expr.scale(0.9)
+        final_expr.arrange_in_grid(3, 16, h_buff=-0.2)
+        zero = Tex("0")
+        zero.generate_target()
+        zero.scale(0).fade(0).next_to(left_side.get_right(), LEFT, buff=0)
+        question_mark.generate_target()
+        expr_group = VGroup(zero.target, question_mark.target, final_expr)
+        expr_group.arrange(RIGHT, buff=0.7)
+        expr_group.center().to_edge(DOWN, buff=0.8)
+        for k in range(32):
+            if (k < 16) and (k % 4 < 2):  # if it's a coefficient of left side
+                coeff_tex = final_expr[k]
+                coeff_tex.generate_target()
+                target_ind = k // 4 * 2
+                target_mob = left_side[target_ind]
+                coeff_tex.scale(0).move_to(target_mob.get_left())
+            elif (k >= 16) and (k % 4 < 2):  # if it's a coefficient of right side
+                coeff_tex = final_expr[k]
+                coeff_tex.generate_target()
+                target_ind = (k - 16) // 4 * 2
+                target_mob = right_side[target_ind]
+                coeff_tex.scale(0).move_to(target_mob.get_left())
+        # Move all terms on one side
+        self.play(
+            # left side coefficients
+            AnimationGroup(*[
+                MoveToTarget(final_expr[k], path_arc=-PI / 3)
+                for k in range(16) if (k % 4 < 2)
+            ]),
+            # right side coefficients
+            AnimationGroup(*[
+                MoveToTarget(final_expr[k])
+                for k in range(16, 32) if (k % 4 < 2)
+            ]),
+            # left side variables
+            AnimationGroup(*[
+                Transform(
+                    left_side[k], final_expr[(k // 2) * 4 + 2 + (k % 2)],
+                    path_arc=-PI / 3,
+                )
+                for k in range(len(left_side))
+            ]),
+            # right side variables
+            AnimationGroup(*[
+                Transform(
+                    right_side[k], final_expr[(k // 2) * 4 + 18 + (k % 2)],
+                )
+                for k in range(len(right_side))
+            ]),
+            # question mark and zero
+            MoveToTarget(question_mark),
+            MoveToTarget(zero),
+            run_time=3,
+        )
+        self.play(Write(final_expr[15]))  # Add a plus sign to the end of the first line
+        self.wait()
+        # For the rest coins, add a term with coefficient 0
+        idle_texts = Tex("m_9", "m_{10}", "m_{11}", "m_{12}")
+        for text, target_mob, coin in zip(idle_texts, final_expr[-13::4], self.coins[-4:]):
+            text.become(target_mob)
+            text.generate_target()
+            text.scale(0).fade(0).move_to(coin)
+        self.play(
+            AnimationGroup(*[
+                MoveToTarget(text)
+                for text in idle_texts
+            ]),
+            run_time=2,
+        )
+        self.wait()
+        zero_coefficients = VGroup(final_expr[-15::4], final_expr[-14::4])
+        self.play(
+            FadeIn(zero_coefficients),
+            Write(final_expr[31::4]),  # Add plus signs to finish off the expression
+        )
+        self.remove(left_side, right_side, idle_texts)
+        self.add(final_expr)
+        self.wait()
+        # Rearrange again to make the 0 lands on the right side
+        expr_group = VGroup(final_expr, question_mark, zero)
+        expr_group.generate_target()
+        expr_group.target.arrange(RIGHT, buff=0.7)
+        expr_group.target.center().to_edge(DOWN, buff=0.8)
+        self.play(
+            MoveToTarget(expr_group, path_arc=-PI / 3),
+            run_time=2,
+        )
+        self.wait()
+        # Highlight relevant terms
+        mass_texts = final_expr[2::4]
+        coeff_texts = final_expr[::4]
+        highlight_colors = [RED, GREEN, BLUE]
+        self.play(
+            AnimationGroup(*[
+                Indicate(text, color=YELLOW)
+                for text in mass_texts
+            ], lag_ratio=0.05),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            AnimationGroup(*[
+                Indicate(text, color=highlight_colors[k // 4])
+                for k, text in enumerate(coeff_texts)
+            ], lag_ratio=0.05),
+            run_time=2,
+        )
+        self.wait()
+        # Show what the coefficients represent
+        left_side_expr = final_expr[:15]
+        right_side_expr = final_expr[16:31]
+        idle_expr = final_expr[32:]
+        exprs = [left_side_expr, right_side_expr, idle_expr]
+        coin_sets = [self.left_coins, self.right_coins, self.idle_coins]
+        for expr, coins, color in zip(exprs, coin_sets, highlight_colors):
+            expr_sur_rect = SurroundingRectangle(expr, color=color, buff=0.15)
+            coins_sur_rect = SurroundingRectangle(coins, color=color, buff=0.15)
+            self.play(
+                Indicate(expr, color=color, scale_factor=1),
+                ShowCreationThenDestruction(expr_sur_rect),
+                ShowCreationThenDestruction(coins_sur_rect),
+                run_time=2,
+            )
+            self.wait()
+        # An example of changing coefficients
+        for k in range(3):
+            self.play(
+                CyclicReplace(*[expr[0] for expr in exprs]),
+                CyclicReplace(*[coin_set[0] for coin_set in coin_sets[::-1]]),
+                run_time=2,
+            )
+            self.wait()
+        # Refresh coins and show possible outcomes
+        self.add(self.left_coins, self.right_coins, self.idle_coins)
+        signs = VGroup(*[Tex(symbol) for symbol in ("=", "<", ">")])
+        for sign in signs:
+            sign.set_color(YELLOW)
+            sign.scale(2)
+            sign.move_to(question_mark)
+        question_mark.save_state()
+        pb_anims = [
+            anim_getter("hide", run_time=2)
+            for anim_getter in (
+                self.pb.get_wiggle_animation,
+                self.pb.get_tilt_left_animation,
+                self.pb.get_tilt_right_animation,
+            )
+        ]
+        for sign, pb_anim in zip(signs, pb_anims):
+            self.play(
+                pb_anim,
+                Transform(question_mark, sign, run_time=1),
+            )
+            self.wait()
+            self.play(
+                self.pb.get_balance_animation("show"),
+                Restore(question_mark),
+            )
+            self.wait()
+        # It is transformed into an expression
+        coeff_texts = final_expr[::4]
+        highlight_colors = [RED, GREEN, BLUE]
+        self.play(
+            AnimationGroup(*[
+                Indicate(text, color=highlight_colors[k // 4])
+                for k, text in enumerate(coeff_texts)
+            ], lag_ratio=0.05),
+            run_time=2,
+        )
+        self.wait()
+        self.play(Indicate(question_mark, scale_factor=2), run_time=2)
+        self.wait()
+        # Now we can put pan balance aside and focus on this expression
+        pb_group = VGroup(self.pb, self.coins)
+        expr_group = VGroup(final_expr, question_mark, zero)
+        self.play(
+            pb_group.animate.shift(FRAME_HEIGHT * UP),
+            expr_group.animate.to_edge(UP, buff=0.6),
+            run_time=2,
+        )
+        self.wait()
+        self.final_expr = final_expr
+        self.question_mark = question_mark
+        self.zero = zero
+
+    def define_weighing_matrix_and_result_vector(self):
+        # Organize LHS into a vector product
+        others = VGroup(self.question_mark, self.zero)
+        others.save_state()
+        final_expr = self.final_expr
+        final_expr.save_state()
+        expr_sur_rect = SurroundingRectangle(final_expr)
+        coeff_texts = final_expr[::4]
+        mass_texts = final_expr[2::4]
+        self.play(
+            ShowCreationThenDestruction(expr_sur_rect),
+            others.animate.shift(4 * RIGHT),
+            run_time=2,
+        )
+        self.play(
+            ApplyMethod(mass_texts.set_color, BLUE),
+            ApplyMethod(coeff_texts.set_color, YELLOW),
+            lag_ratio=0.1, run_time=2,
+        )
+        self.wait()
+        weighing_vector_1 = HVector(*(["-1"] * 4 + ["1"] * 4 + ["0"] * 4))
+        mass_vector = VVector(*["m_{" + str(k) + "}" for k in range(1, 13)])
+        vectors = VGroup(weighing_vector_1, mass_vector)
+        vectors.arrange(RIGHT).center().to_edge(RIGHT)
+        self.play(
+            AnimationGroup(*[
+                ReplacementTransform(
+                    text if k >= 4 else text[1:-1],
+                    weighing_vector_1.get_column(k)
+                )
+                for k, text in enumerate(coeff_texts)
+            ], lag_ratio=0.1, run_time=2),
+            AnimationGroup(*[
+                FadeOut(VGroup(text[0], text[-1]))
+                for text in coeff_texts[:4]
+            ], lag_ratio=0.2, run_time=2),
+            Write(weighing_vector_1.get_brackets(), run_time=1),
+        )
+        self.wait()
+        self.play(
+            AnimationGroup(*[
+                ReplacementTransform(text, mass_vector.get_row(k))
+                for k, text in enumerate(mass_texts)
+            ], lag_ratio=0.1, run_time=2),
+            AnimationGroup(*[
+                FadeOut(final_expr[1::2])
+            ], lag_ratio=0.2, run_time=2),
+            Write(mass_vector.get_brackets(), run_time=1),
+        )
+        self.wait()
+        # For multiple weighings, the row vectors can be integrated
+        weighing_vector_2 = HVector(*(["1"] * 6 + ["-1"] * 6))
+        weighing_vector_3 = HVector(*(["0"] * 8 + ["1"] * 2 + ["-1"] * 2))
+        weighing_vectors = [weighing_vector_1, weighing_vector_2, weighing_vector_3]
+        extra_vectors = VGroup(weighing_vector_2, weighing_vector_3)
+        extra_vectors.arrange(DOWN)
+        extra_vectors.next_to(weighing_vector_1, DOWN, buff=1)
+        self.play(FadeIn(extra_vectors, shift=UP))
+        self.wait()
+        weighing_matrix = WeighingMatrix([
+            vector.entries
+            for vector in weighing_vectors
+        ])
+        weighing_matrix.next_to(mass_vector, LEFT)
+        entry_anims_list = []
+        for i in range(3):
+            for j in range(12):
+                vector = weighing_vectors[i]
+                vector_entry = vector.get_column(j)
+                matrix_entry = weighing_matrix.get_entry(i, j)
+                entry_anims_list.append(
+                    ReplacementTransform(vector_entry, matrix_entry)
+                )
+        bracket_anims_list = [
+            ReplacementTransform(vector.get_brackets(), weighing_matrix.get_brackets())
+            for vector in weighing_vectors
+        ]
+        self.play(
+            AnimationGroup(*entry_anims_list),
+            AnimationGroup(*bracket_anims_list),
+            run_time=2,
+        )
+        self.wait()
+        # Highlight rows and columns
+        highlight_colors = [RED, GREEN, BLUE]
+        rows_texts = VGroup(*[
+            TexText(text, color=color)
+            .scale(0.6)
+            .next_to(vector.get_column(0), LEFT)
+            .next_to(weighing_matrix, LEFT, coor_mask=[1, 0, 0])
+            for text, color, vector in zip(
+                ["第一次称量", "第二次称量", "第三次称量"], highlight_colors, weighing_vectors
+            )
+        ])
+        columns_coins = VGroup(*[
+            Coin(k + 1)
+            .scale(0.7)
+            .next_to(column, UP)
+            for k, column in enumerate(weighing_matrix.get_columns())
+        ])
+        for text in rows_texts:
+            text.generate_target()
+        for coin in columns_coins:
+            coin.generate_target()
+        rows_texts.fade(1)
+        columns_coins.fade(1)
+        self.play(
+            AnimationGroup(*[
+                MoveToTarget(text)
+                for text in rows_texts
+            ], lag_ratio=0.2),
+            AnimationGroup(*[
+                Indicate(row, scale_factor=1, color=highlight_colors[k % 3])
+                for k, row in enumerate(weighing_matrix.get_rows())
+            ], lag_ratio=0.2),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            AnimationGroup(*[
+                MoveToTarget(coin)
+                for coin in columns_coins
+            ], lag_ratio=0.2),
+            AnimationGroup(*[
+                Indicate(column, scale_factor=1, color=highlight_colors[k % 3])
+                for k, column in enumerate(weighing_matrix.get_columns())
+            ], lag_ratio=0.2),
+            run_time=3,
+        )
+        self.wait()
+        calc_group = VGroup()
+        # Show result vector
+        equal_sign = Tex("=")
+        result_vector = VVector(*["?"] * 3)
+        result_group = VGroup(equal_sign, result_vector)
+        result_group.arrange(RIGHT, buff=0.3)
+        result_group.next_to(mass_vector, RIGHT)
+        self.add(result_group)
+        all_mobs = VGroup(
+            weighing_matrix, mass_vector, result_group,
+            rows_texts, columns_coins,
+        )
+        self.play(all_mobs.animate.shift(4 * LEFT))
+        self.wait()
+        result_texts = VGroup(*[
+            TexText(text, color=color)
+            .scale(0.6)
+            .next_to(result_vector.get_row(k), RIGHT)
+            .next_to(result_vector, RIGHT, coor_mask=[1, 0, 0])
+            for (k, text), color in zip(
+                enumerate(["第一次称量结果", "第二次称量结果", "第三次称量结果"]),
+                highlight_colors,
+            )
+        ])
+        for text in result_texts:
+            text.generate_target()
+        result_texts.fade(1)
+        self.play(
+            AnimationGroup(*[
+                MoveToTarget(text)
+                for text in result_texts
+            ], lag_ratio=0.2),
+            AnimationGroup(*[
+                Indicate(row, scale_factor=1, color=highlight_colors[k % 3])
+                for k, row in enumerate(result_vector.get_rows())
+            ], lag_ratio=0.2),
+            run_time=2,
+        )
+        all_mobs.add(result_texts)
+        self.wait()
+        # Center the equation and define two terms
+        all_mobs.generate_target()
+        all_mobs.target.shift(2.2 * RIGHT)
+        all_mobs.target[-3:].fade(1)
+        self.play(MoveToTarget(all_mobs))
+        self.wait()
+        weighing_matrix_text = TexText("称量矩阵", color=YELLOW)
+        weighing_matrix_text.next_to(weighing_matrix, UP)
+        result_vector_text = TexText("结果向量", color=PINK)
+        result_vector_text.next_to(result_vector, UP)
+        self.play(
+            Indicate(weighing_matrix, scale_factor=1, color=YELLOW),
+            Write(weighing_matrix_text),
+        )
+        self.wait()
+        self.play(
+            Indicate(result_vector, scale_factor=1, color=PINK),
+            Write(result_vector_text),
+        )
+        self.wait()
+        # Cover all columns of the matrix as we don't know its entries yet
+        cover_texts = VGroup(*[
+            TexText("第", str(k + 1), "列", color=GREY)
+            .scale(0.8)
+            .arrange(DOWN, buff=0.15)
+            .move_to(column)
+            for k, column in enumerate(weighing_matrix.get_columns())
+        ])
+        cover_rects = VGroup(*[
+            SurroundingRectangle(
+                cover_text, stroke_color=GREY, stroke_width=2,
+                fill_color=BLACK, fill_opacity=1, buff=0.1,
+            )
+            for cover_text in cover_texts
+        ])
+        self.play(FadeIn(cover_rects))
+        self.play(FadeIn(cover_texts))
+        self.wait()
+        # Now move onto the mass vector part
+        self.play(FadeOut(weighing_matrix_text), FadeOut(result_vector_text))
+        self.wait()
+        self.remove(weighing_matrix.elements)
+        weighing_matrix = VGroup(
+            weighing_matrix.get_brackets(), cover_rects, cover_texts,
+        )
+        weighing_matrix.save_state()
+        self.play(
+            mass_vector.animate.center(),
+            FadeOut(weighing_matrix),
+            FadeOut(result_group),
+            run_time=2,
+        )
+        self.wait()
+        self.weighing_matrix = weighing_matrix
+        self.mass_vector = mass_vector
+        self.result_group = result_group
+
+    def define_standard_vector_and_bias_vector(self):
+        # Every entry can be further divided into two terms
+        mass_vector = self.mass_vector
+        standard_vector = VVector(*["m"] * 12)
+        bias_vector = VVector(*["b_{" + str(k) + "}" for k in range(1, 13)])
+        add_sign = TexText("+")
+        sum_group = VGroup(standard_vector, add_sign, bias_vector)
+        sum_group.arrange(RIGHT).center()
+        sum_group.generate_target()
+        sum_group[0].center()
+        sum_group[1].scale(0)
+        sum_group[2].center()
+        sum_group.fade(1)
+        self.play(
+            FadeOut(mass_vector, run_time=1.5),
+            MoveToTarget(sum_group, run_time=2),
+        )
+        self.wait()
+        self.play(Indicate(standard_vector), run_time=2)
+        self.wait()
+        self.play(Indicate(bias_vector), run_time=2)
+        self.wait()
+        self.play(
+            AnimationGroup(*[
+                Indicate(entry[1:])
+                for entry in bias_vector.get_entries()
+            ], lag_ratio=0.1),
+            run_time=2,
+        )
+        self.wait()
+        # Focus on one entry of the bias vector
+        sixth_entry = bias_vector.get_row(6 - 1)
+        sixth_entry.save_state()
+        sixth_entry.generate_target()
+        sixth_entry.target.set_color(YELLOW).scale(2).shift(1.5 * RIGHT)
+        self.play(MoveToTarget(sixth_entry))
+        self.wait()
+        coin_fill_colors = [
+            CoinType().coin_fill_color
+            for CoinType in [RealCoin, LighterCoin, HeavierCoin]
+        ]
+        sixth_remarks = VGroup(*[
+            VGroup(
+                CoinType(6),
+                TexText(remark_text, color=color)
+            )
+            .scale(1.2)
+            .arrange(RIGHT, buff=0.3)
+            .next_to(sixth_entry, DOWN, aligned_edge=LEFT, buff=0.5)
+            for CoinType, remark_text, color in zip(
+                [RealCoin, LighterCoin, HeavierCoin],
+                ["真币", "轻的假币", "重的假币"],
+                coin_fill_colors
+            )
+        ])
+        sixth_possibilities = VGroup(*[
+            Tex(possibility, color=YELLOW).scale(1.5)
+            .next_to(sixth_entry, RIGHT, buff=0.4)
+            for possibility in ("=0", "<0", ">0")
+        ])
+        for k in range(len(sixth_remarks)):
+            if k == 0:
+                self.play(
+                    FadeIn(sixth_remarks[0]),
+                    FadeIn(sixth_possibilities[0]),
+                )
+            else:
+                self.play(
+                    FadeOut(sixth_possibilities[k - 1]),
+                    FadeOut(sixth_remarks[k - 1]),
+                    FadeIn(sixth_possibilities[k]),
+                    FadeIn(sixth_remarks[k]),
+                )
+            self.wait()
+        self.play(
+            FadeOut(sixth_possibilities[-1]),
+            FadeOut(sixth_remarks[-1]),
+        )
+        self.wait()
+        # Show possible values of bias 'b'
+        text_colors = [
+            CoinType().coin_fill_color
+            for CoinType in [LighterCoin, RealCoin, HeavierCoin]
+        ]
+        b_values = VGroup(*[
+            TexText(text, color=text_colors[k // 2])
+            for k, text in enumerate(["-1", "偏轻", "0", "真币", "+1", "偏重"])
+        ])
+        b_values.arrange_in_grid(3, 2, aligned_edge=LEFT)
+        b_brace = Brace(b_values, direction=LEFT)
+        b_equal = Tex("=")
+        b_equal.next_to(b_brace, LEFT)
+        b_group = VGroup(b_equal, b_brace, b_values)
+        b_group.next_to(sixth_entry, RIGHT)
+        self.play(
+            sixth_entry.animate.set_color(WHITE),
+            FadeIn(b_group, shift=LEFT),
+        )
+        self.wait()
+        # Signs, not the number itself, are the most important part
+        signs = VGroup(b_values[0][0][0], b_values[-2][0][0])
+        self.play(Indicate(signs, scale_factor=1, lag_ratio=0.2))
+        self.wait()
+        self.play(Restore(sixth_entry), FadeOut(b_group))
+        self.wait()
+        # Define the rest two terms
+        standard_vector_text = TexText("标准向量", color=YELLOW)
+        standard_vector_text.next_to(standard_vector, LEFT, buff=0.6)
+        bias_vector_text = TexText("偏差向量", color=PINK)
+        bias_vector_text.next_to(bias_vector, RIGHT, buff=0.6)
+        self.play(
+            Indicate(standard_vector, scale_factor=1),
+            Write(standard_vector_text),
+            run_time=2,
+        )
+        self.wait()
+        self.play(
+            Indicate(bias_vector, scale_factor=1, color=PINK),
+            Write(bias_vector_text),
+            run_time=2,
+        )
+        self.wait()
+        # Back to the ol' matrix form
+        brackets = LargeBrackets(VGroup(standard_vector, bias_vector))
+        self.play(
+            FadeOut(standard_vector_text, run_time=1),
+            FadeOut(bias_vector_text, run_time=1),
+            Write(brackets, run_time=2),
+        )
+        self.wait()
+        sum_group.add(brackets)
+        self.sum_group = sum_group
+
+    def problem_recap(self):
+        weighing_matrix = self.weighing_matrix
+        sum_group = self.sum_group
+        result_group = self.result_group
+        sum_group.generate_target()
+        equation_group = VGroup(weighing_matrix, sum_group.target, result_group)
+        equation_group.arrange(RIGHT)
+        equation_group.set_width(FRAME_WIDTH - 1).center()
+        self.play(
+            FadeIn(weighing_matrix),
+            FadeIn(result_group),
+            MoveToTarget(sum_group),
+            run_time=2,
+        )
+        self.wait()
+        equation_group = VGroup(weighing_matrix, sum_group, result_group)
+        # All entries are same in the standard vector
+        # and at most 1 entry is non-zero in the bias vector
+        standard_vector, add_sign, bias_vector, brackets = sum_group
+        self.play(
+            standard_vector.animate.set_color(YELLOW),
+            bias_vector.animate.set_color(PINK),
+            run_time=2,
+        )
+        self.wait()
+        # standard_constraint = TexText("相等", color=YELLOW)
+        standard_constraint = Text("相等", color=YELLOW, font="STZhongSong")  # hack
+        standard_constraint.scale(0.8).next_to(standard_vector, UP)
+        bias_constraint = TexText("至多一个\\\\非零元素", color=PINK)
+        bias_constraint.scale(0.8).next_to(bias_vector, UP)
+        self.play(
+            Indicate(standard_vector.elements, color=None, lag_ratio=0.1),
+            run_time=2,
+        )
+        self.wait()
+        self.play(Write(standard_constraint))
+        self.wait()
+        self.play(
+            FadeOut(standard_constraint),
+            standard_vector.animate.set_color(WHITE),
+            Indicate(bias_vector.elements, color=None, lag_ratio=0.1),
+            run_time=2,
+        )
+        self.play(Write(bias_constraint))
+        self.wait()
+        # Weighing is the same thing as multiplying a matrix on the left
+        self.play(
+            FadeOut(bias_constraint),
+            bias_vector.animate.set_color(WHITE),
+            Indicate(weighing_matrix, scale_factor=1.1, color=None)
+        )
+        self.wait()
+        self.play(Indicate(result_group[-1], color=BLUE))
+        self.wait()
+        # We want to know what's inside the bias vector
+        question_rect = SurroundingRectangle(
+            bias_vector, stroke_color=PINK,
+            fill_color=BLACK, fill_opacity=0.7,
+        )
+        question_mark = TexText("?", color=PINK)
+        question_mark.set_width(question_rect.get_width() * 0.6)
+        question_mark.move_to(question_rect)
+        question_rect.add(question_mark)
+        self.play(FadeIn(question_rect))
+        self.wait()
+        # But to do so, we need to use the result vector
+        self.play(Indicate(result_group[-1], color=BLUE))
+        self.wait()
+        arrow = ArcBetweenPoints(
+            result_group[-1].get_bottom() + 0.3 * DOWN,
+            bias_vector.get_row(9).get_right() + 0.5 * RIGHT,
+            angle=-PI / 3,
+        )
+        arrow.add_tip()
+        arrow.set_color(BLUE)
+        self.play(ShowCreation(arrow))
+        self.wait()
+        self.play(FadeOut(arrow), FadeOut(question_rect))
+        self.wait()
+        # Center weighing matrix
+        all_mobs = VGroup(*self.mobjects)
+        all_mobs.remove(weighing_matrix)
+        weighing_matrix.generate_target()
+        weighing_matrix.target.set_height(1.5).center()
+        self.play(FadeOut(all_mobs), MoveToTarget(weighing_matrix))
+        self.wait()
+        design_text = TexText("如何设计称量矩阵?", color=YELLOW)
+        design_text.next_to(weighing_matrix, UP, buff=0.8)
+        self.play(Write(design_text))
+        self.wait()
+
+
+class WeighingMatrixMustSatisfyFiveConditions(Scene):
+    def setup(self):
+        # Setup to match with the last scene
+        weighing_matrix = WeighingMatrix([[-1] * 12, [0] * 12, [1] * 12])
+        cover_texts = VGroup(*[
+            TexText("第", str(k + 1), "列", color=GREY)
+            .scale(0.8)
+            .arrange(DOWN, buff=0.15)
+            .move_to(column)
+            for k, column in enumerate(weighing_matrix.get_columns())
+        ])
+        cover_rects = VGroup(*[
+            SurroundingRectangle(
+                cover_text, color=None, fill_color=None, fill_opacity=0,
+                stroke_color=GREY, stroke_width=2, buff=0.1,
+            )
+            for cover_text in cover_texts
+        ])
+        cover_group = VGroup(*[
+            VGroup(rect, text)
+            for rect, text in zip(cover_rects, cover_texts)
+        ])
+        weighing_matrix = VGroup(cover_group, weighing_matrix.get_brackets())
+        weighing_matrix.set_height(1.5)
+        design_text = TexText("如何设计称量矩阵?", color=YELLOW)
+        design_text.next_to(weighing_matrix, UP, buff=0.8)
+        self.add(weighing_matrix, design_text)
+        self.weighing_matrix = weighing_matrix
+        self.design_text = design_text
+
+    def construct(self):
+        self.eliminate_standard_vector()
+        self.show_all_possible_result_vectors()
+        self.last_conditions_for_weighing_matrix()
+
+    def eliminate_standard_vector(self):
+        weighing_matrix = self.weighing_matrix
+        standard_vector = VVector(*["m"] * 12)
+        bias_vector = VVector(*["b_{" + str(k) + "}" for k in range(1, 13)])
+        add_sign = TexText("+")
+        sum_group = VGroup(standard_vector, add_sign, bias_vector)
+        sum_group.arrange(RIGHT)
+        brackets = LargeBrackets(sum_group)
+        sum_group.add(brackets)
+        equal_sign = Tex("=")
+        result_vector = VVector(*["?"] * 3)
+        # Move stuff to the top
+        weighing_matrix.generate_target()
+        equation_group = VGroup(
+            weighing_matrix.target, sum_group, equal_sign, result_vector
+        )
+        equation_group.arrange(RIGHT)
+        equation_group.center().set_width(FRAME_WIDTH - 1).to_edge(UP)
+        self.play(
+            MoveToTarget(weighing_matrix),
+            FadeIn(equation_group[1:]),
+            FadeOut(self.design_text),
+            run_time=2,
+        )
+        equation_group = VGroup(
+            weighing_matrix, sum_group, equal_sign, result_vector
+        )
+        self.wait()
+        # 'm' is an unknown variable which needs to be eliminated
+        unknown_text = TexText("$m$未知", color=YELLOW)
+        unknown_text.next_to(standard_vector, DOWN)
+        self.play(
+            Indicate(standard_vector.elements, scale_factor=1, lag_ratio=0.05),
+            Write(unknown_text),
+        )
+        self.wait()
+        eliminate_text = TexText("“归零”", color=YELLOW)
+        eliminate_text.move_to(unknown_text)
+        self.play(ReplacementTransform(unknown_text, eliminate_text))
+        self.wait()
+        weighing_matrix.save_state()
+        self.play(
+            FadeOut(eliminate_text),
+            weighing_matrix.animate.set_color(color=BLUE),
+            standard_vector.animate.set_color(BLUE),
+        )
+        self.wait()
+        # Weighing matrix times standard vector equals zero vector
+        columns_copy = weighing_matrix[0].deepcopy()
+        add_signs = VGroup(*[
+            Tex("+").scale(0.8)
+            for k in range(len(columns_copy) - 1)
+        ])
+        for k in range(len(columns_copy) - 1):
+            add_signs[k].next_to(columns_copy[k], RIGHT, buff=0.1)
+            columns_copy[k + 1].next_to(add_signs[k], RIGHT, buff=0.1)
+        column_sum = VGroup(columns_copy, add_signs)
+        brackets = LargeBrackets(column_sum)
+        column_sum.add(brackets)
+        m_text = Tex("m")
+        zero_vector = VGroup(Tex("="), VVector(*[0] * 3))
+        zero_vector.arrange(RIGHT)
+        column_sum_group = VGroup(m_text, column_sum, zero_vector)
+        column_sum_group.arrange(RIGHT).center().set_width(FRAME_WIDTH - 1).to_edge(DOWN, buff=0.8)
+        self.play(
+            equation_group.animate.shift(2 * UP),
+            ReplacementTransform(weighing_matrix[0].deepcopy(), column_sum[0]),
+            ReplacementTransform(standard_vector.elements.deepcopy(), m_text),
+            Write(column_sum[1:]),
+            run_time=3,
+        )
+        self.play(FadeIn(zero_vector))
+        self.wait()
+        rule_1 = TexText("-", "每一行元素的和为0", color=YELLOW)
+        rule_1.next_to(column_sum[:-1], UP)
+        self.play(
+            Write(rule_1),
+            FadeOut(m_text), FadeOut(column_sum[-1]),
+            zero_vector.animate.next_to(column_sum[:-1], RIGHT),
+            run_time=2,
+        )
+        self.wait()
+        # Now we can remove standard vector
+        self.play(FadeOut(VGroup(rule_1, column_sum[:-1], zero_vector)))
+        self.wait()
+        equation_group = VGroup(
+            weighing_matrix, bias_vector, equal_sign, result_vector
+        )
+        equation_group.generate_target()
+        equation_group.target[0].restore()
+        equation_group.target.arrange(RIGHT).center().to_edge(UP)
+        self.play(
+            VGroup(sum_group[0], sum_group[1], sum_group[-1]).animate.shift(2 * UP).fade(1),
+            MoveToTarget(equation_group),
+            run_time=2,
+        )
+        self.wait()
+        self.equation_group = equation_group
+
+    def show_all_possible_result_vectors(self):
+        weighing_matrix, bias_vector, equal_sign, result_vector = self.equation_group
+        self.play(Indicate(bias_vector, scale_factor=1, color=YELLOW))
+        self.wait()
+        # all zero bias -> all zero result
+        for mob in self.equation_group:
+            mob.save_state()
+        all_zero_bias = VVector(*["0"] * 12)
+        all_zero_bias.match_height(bias_vector).move_to(bias_vector).set_color(YELLOW)
+        all_zero_result = VVector(*["0"] * 3)
+        all_zero_result.match_height(result_vector).move_to(result_vector).set_color(GREEN)
+        self.play(Transform(bias_vector, all_zero_bias))
+        self.wait()
+        self.play(Transform(result_vector, all_zero_result))
+        self.wait()
+        self.play(Restore(bias_vector), Restore(result_vector))
+        self.wait()
+        # one non-zero bias -> one column of the matrix
+        sixth_entry = bias_vector.get_row(5)
+        other_entries = VGroup(*[
+            bias_vector.get_row(k)
+            for k in (list(range(5)) + list(range(6, 12)))
+        ])
+        other_zero_entries = VGroup(*[
+            Tex("0").scale(0.8).move_to(entry)
+            for entry in other_entries
+        ])
+        sixth_entry.save_state()
+        sixth_rect = SurroundingRectangle(sixth_entry)
+        self.play(
+            ShowCreationThenDestruction(sixth_rect),
+            Indicate(sixth_entry, scale_factor=1),
+        )
+        self.wait()
+        self.play(Transform(other_entries, other_zero_entries))
+        self.wait()
+        sixth_column = weighing_matrix[0][5]
+        other_columns = VGroup(weighing_matrix[0][:5], weighing_matrix[0][6:])
+        self.play(
+            sixth_entry.animate.set_color(YELLOW),
+            other_entries.animate.fade(0.9),
+            sixth_column.animate.set_color(YELLOW),
+            other_columns.animate.fade(0.8),
+        )
+        self.wait()
+        # Show two possibilities of the sixth entry
+        sixth_entry.save_state()
+        sixth_plus_one, sixth_minus_one = VGroup(*[
+            Tex(text, color=color).scale(0.8).move_to(sixth_entry)
+            for text, color in zip(["+1", "-1"], [BLUE_E, RED_E])
+        ])
+        plus_sign, minus_sign = VGroup(*[
+            Tex(text, color=color).scale(1.5).next_to(equal_sign, RIGHT)
+            for text, color in zip(["+\\,", "-\\,"], [BLUE_E, RED_E])
+        ])
+        sixth_column_copy = sixth_column.deepcopy()
+        sixth_column_copy.generate_target()
+        sixth_column_copy.target.scale(1.5).next_to(plus_sign, RIGHT).set_color(BLUE_E)
+        self.play(Transform(sixth_entry, sixth_plus_one))
+        self.wait()
+        self.play(
+            MoveToTarget(sixth_column_copy, path_arc=-PI / 3),
+            FadeOut(result_vector),
+        )
+        result_vector.fade(1)
+        self.play(Write(plus_sign))
+        self.wait()
+        self.play(
+            Transform(sixth_entry, sixth_minus_one),
+        )
+        self.wait()
+        self.play(
+            Transform(plus_sign, minus_sign),
+            sixth_column_copy.animate.set_color(RED_E).next_to(minus_sign, RIGHT),
+        )
+        self.wait()
+        self.play(
+            FadeOut(plus_sign), FadeOut(sixth_column_copy),
+            AnimationGroup(*[Restore(mob) for mob in self.equation_group])
+        )
+        self.wait()
+        # All 25 possible result vectors
+        plus_columns = weighing_matrix[0]
+        other_mobs = VGroup(weighing_matrix[1], bias_vector, equal_sign, result_vector)
+        self.play(
+            FadeOut(other_mobs, run_time=1),
+            plus_columns.animate.arrange(RIGHT, buff=0.55).move_to(DOWN + 0.5 * RIGHT).set_color(BLUE_E)
+        )
+        plus_signs = VGroup(*[
+            Tex("+\\,", color=BLUE_E).scale(0.6).next_to(column, LEFT, buff=0.05)
+            for column in plus_columns
+        ])
+        self.play(FadeIn(plus_signs))
+        self.wait()
+        minus_columns = plus_columns.deepcopy()
+        minus_columns.shift(2 * DOWN).set_color(RED_E)
+        minus_signs = VGroup(*[
+            Tex("-\\,", color=RED_E).scale(0.6).next_to(column, LEFT, buff=0.05)
+            for column in minus_columns
+        ])
+        self.play(
+            ReplacementTransform(plus_signs.deepcopy(), minus_signs),
+            ReplacementTransform(plus_columns.deepcopy(), minus_columns),
+        )
+        self.wait()
+        zero_column = VVector(*["0"] * 3)
+        zero_column.set_color(GREEN)
+        zero_column.scale(0.8).next_to(VGroup(plus_columns, minus_columns), LEFT, buff=0.6)
+        self.play(Write(zero_column))
+        self.wait()
+        self.zero_column = zero_column
+        self.plus_group = VGroup(*[
+            VGroup(column, sign)
+            for column, sign in zip(plus_columns, plus_signs)
+        ])
+        self.minus_group = VGroup(*[
+            VGroup(column, sign)
+            for column, sign in zip(minus_columns, minus_signs)
+        ])
+        self.all_columns = VGroup(self.zero_column, self.plus_group, self.minus_group)
+
+    def last_conditions_for_weighing_matrix(self):
+        all_columns = self.all_columns
+        zero_column, plus_group, minus_group = all_columns
+        # all_distinct_text = TexText("25个结果向量各不相同", color=YELLOW)
+        all_distinct_text = Text("结果向量各不相同", font="STZhongSong", color=YELLOW)
+        all_distinct_text.shift(2 * UP)
+        all_distinct_rect = SurroundingRectangle(all_columns)
+        self.play(
+            Write(all_distinct_text),
+            ShowCreationThenDestruction(all_distinct_rect),
+        )
+        self.wait()
+        # An example that won't work
+        replaced_vectors = plus_group[3:5]
+        alternate_vectors = VGroup(*[
+            VVector(0, 1, 1).match_width(vector).move_to(vector)
+            for vector in replaced_vectors
+        ])
+        self.play(FadeOut(replaced_vectors), FadeIn(alternate_vectors))
+        self.wait()
+        alternate_rect = SurroundingRectangle(alternate_vectors)
+        alternate_rect.set_stroke(color=YELLOW)
+        alternate_cross = Cross(alternate_vectors)
+        alternate_cross.set_color(YELLOW)
+        alternate_cross.set_stroke(width=5)
+        self.play(ShowCreation(alternate_rect))
+        self.play(DrawBorderThenFill(alternate_cross))
+        self.wait()
+        self.play(
+            FadeOut(VGroup(alternate_rect, alternate_cross, alternate_vectors, all_distinct_text)),
+            FadeIn(replaced_vectors),
+        )
+        self.wait()
+        # Zero vector already showed up, so there're no all-zero columns
+        all_rules = VGroup(*[
+            TexText("-", rule_text, color=YELLOW)
+            for rule_text in [
+                "不能出现全零的列", "任意两列不同", "任意两列的和不为零向量",
+                "元素只能是-1, 0或1", "每一行元素的和为0",
+            ]
+        ])
+        all_rules.arrange(DOWN, aligned_edge=LEFT).scale(0.8).to_edge(UP, buff=0.6)
+        self.play(Indicate(zero_column))
+        self.wait()
+        for rule in all_rules:
+            self.play(Write(rule))
+            self.wait()
+        self.play(
+            FadeOut(self.all_columns),
+            all_rules.animate.set_color(WHITE).scale(5 / 8).to_corner(UL)
+        )
+        self.wait()
+
+
+class DesignAProperWeighingMatrix(Scene):
+    def setup(self):
+        all_rules = VGroup(*[
+            TexText("-", rule_text)
+            for rule_text in [
+                "不能出现全零的列", "任意两列不同", "任意两列的和不为零向量",
+                "元素只能是-1, 0或1", "每一行元素的和为0",
+            ]
+        ])
+        all_rules.arrange(DOWN, aligned_edge=LEFT).scale(0.5).to_corner(UL)
+        self.add(all_rules)
+        self.all_rules = all_rules
+
+    def construct(self):
+        # List all possible combinations
+        possible_combs_list = list(it.product([0, 1, -1], repeat=3))
+        all_possible_columns = VGroup(*[
+            VVector(*comb)
+            for comb in possible_combs_list
+        ])
+        for column in all_possible_columns:
+            column.get_brackets().set_color(GREY).fade(0.2)
+        all_possible_columns.arrange_in_grid(3, 9, h_buff_ratio=1)
+        all_possible_columns.scale(0.8).to_edge(DOWN)
+        # All entries come from {-1, 0, 1}
+        self.play(
+            AnimationGroup(*[
+                FadeIn(column)
+                for column in all_possible_columns
+            ], lag_ratio=0.1),
+            self.all_rules[-2].animate.set_color(GREEN),
+            run_time=3,
+        )
+        self.wait()
+        # No all-zero column
+        zero_column = all_possible_columns[0]
+        self.play(
+            FadeOut(zero_column),
+            self.all_rules[0].animate.set_color(GREEN),
+        )
+        possible_combs_list.pop(0)
+        all_possible_columns.remove(zero_column)
+        self.wait()
+        # Select 12 from the remaining 26 vectors
+        select_12_from_26_text = TexText("不重复选择12个", color=YELLOW)
+        select_12_from_26_text.scale(1.2).move_to(2.5 * UP + RIGHT)
+        self.play(Write(select_12_from_26_text))
+        self.play(self.all_rules[1].animate.set_color(GREEN))
+        self.wait()
+        self.play(FadeOut(select_12_from_26_text))
+        self.wait()
+        # Construct index mapping for the grouping
+        index_map = {}
+        for k in range(len(possible_combs_list)):
+            if not (k in index_map.keys() or k in index_map.values()):
+                curr_vec = possible_combs_list[k]
+                comp_vec = tuple(-entry for entry in curr_vec)
+                comp_index = possible_combs_list.index(comp_vec)
+                index_map[k] = comp_index
+        # Rearrange into 13 groups
+        all_possible_columns.generate_target()
+        temp_group = VGroup(*[
+            VGroup(all_possible_columns.target[k], all_possible_columns.target[index_map[k]])
+            .arrange(DOWN, buff=0.8)
+            for k in index_map.keys()
+        ])
+        temp_group.arrange(RIGHT, buff=0.2).set_width(FRAME_WIDTH - 1)
+        temp_group.to_edge(DOWN, buff=0.8)
+        self.play(MoveToTarget(all_possible_columns), run_time=3)
+        self.wait()
+        rearranged_group = VGroup(*[
+            VGroup(all_possible_columns[k], all_possible_columns[index_map[k]])
+            for k in index_map.keys()
+        ])
+        select_one_from_each_set = TexText("每组只选一个向量", color=YELLOW)
+        select_one_from_each_set.scale(1.2).next_to(rearranged_group, UP, buff=1)
+        set_arrows = VGroup(*[
+            Arrow(ORIGIN, DOWN).set_color(YELLOW).next_to(column_set, UP)
+            for column_set in rearranged_group
+        ])
+        self.play(
+            AnimationGroup(*[GrowArrow(arrow) for arrow in set_arrows], run_time=2),
+            Write(select_one_from_each_set, run_time=1),
+        )
+        self.play(self.all_rules[2].animate.set_color(GREEN))
+        self.wait()
+        self.play(
+            FadeOut(select_one_from_each_set),
+            FadeOut(set_arrows),
+            VGroup(*[column[1:] for column in all_possible_columns]).animate.fade(1),
+        )
+        self.wait()
+        # Now change selection to satisfy the last condition
+        extra_group = rearranged_group[-1]
+        extra_group_text = TexText("多出一组", color=RED)
+        extra_group_text.scale(0.8).next_to(extra_group, UP)
+        extra_group_cross = Cross(extra_group)
+        extra_group_cross.set_stroke(width=5)
+        self.play(Write(extra_group_text), ShowCreation(extra_group_cross))
+        self.wait()
+        self.play(
+            FadeOut(rearranged_group[-1]),
+            FadeOut(extra_group_text), FadeOut(extra_group_cross),
+        )
+        self.wait()
+        for start_ind, end_ind in [(-5, -1), (2, 4)]:
+            swap_column_sets = rearranged_group[start_ind:end_ind]
+            self.play(
+                AnimationGroup(*[
+                    Swap(*column_set.submobjects)
+                    for column_set in swap_column_sets
+                ], lag_ratio=0.05, run_time=2)
+            )
+            self.wait()
+            for column_set in swap_column_sets:
+                column_set.submobjects.reverse()
+        # That's how we construct a proper weighing matrix
+        weighing_matrix = WeighingMatrix(
+            np.array([
+                np.array(column_set[0].entries)
+                for column_set in rearranged_group[:-1]
+            ]).T
+        )
+        weighing_matrix.set_color(YELLOW).move_to(0.5 * DOWN)
+        self.play(
+            AnimationGroup(*[
+                ReplacementTransform(column_set[0].elements, target_column)
+                for column_set, target_column in zip(
+                    rearranged_group[:-1], weighing_matrix.get_columns()
+                )
+            ], lag_ratio=0.05, run_time=2),
+            FadeOut(
+                VGroup(*[column_set[1] for column_set in rearranged_group[:-1]])
+            ),
+        )
+        self.play(
+            Write(weighing_matrix.get_brackets()),
+            self.all_rules.animate.set_color(GREEN),
+            run_time=1,
+        )
+        self.wait()
+        self.play(
+            self.all_rules.animate.shift(4 * UP),
+            weighing_matrix.animate.to_edge(UP, buff=0.5).set_color(WHITE),
+            run_time=2,
+        )
+        self.wait()
+
+
+class FromMatrixToReality(Scene):
+    def construct(self):
+        # Match with the last scene
+        weighing_matrix = WeighingMatrix([
+            [0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1],
+            [0, 1, -1, -1, 0, 0, 0, 1, -1, -1, 1, 1],
+            [1, 0, -1, 1, 0, 1, -1, 0, -1, 1, 0, -1],
+        ])
+        weighing_matrix.to_edge(UP, buff=0.5)
+        self.add(weighing_matrix)
+        # Couldn't resist...
+        matrix_to_reality = VGroup(*[
+            TexText("Matrix"),
+            Arrow(ORIGIN, 2 * DOWN),
+            TexText("Reality"),
+        ])
+        matrix_to_reality.arrange(DOWN).set_color(GREY)
+        matrix_to_reality.center()
+        for AnimationType in (FadeIn, FadeOut):
+            self.play(AnimationType(matrix_to_reality))
+            self.wait()
+        # Finally back to pan balances
+        pbs = VGroup(*[PanBalance(max_tilt_angle=PI / 20) for k in range(3)])
+        pbs.arrange(RIGHT, buff=1.5).move_to(1.5 * DOWN).set_width(FRAME_WIDTH - 1)
+        pbs.shift(4 * DOWN)
+        self.play(pbs.animate.shift(4 * UP))
+        self.wait()
+        coins = VGroup(*[
+            VGroup(*[Coin(k, radius=0.25) for k in range(1, 13)])
+            for l in range(3)
+        ])
+        weighing_texts = VGroup(*[
+            TexText(text, color=GREY)
+            for text in ("第一次称量", "第二次称量", "第三次称量")
+        ])
+        # Put all coins in place according to the matrix
+        for row_ind, coin_set in enumerate(coins):
+            for col_ind, coin in enumerate(coin_set):
+                coin.generate_target()
+                coin.scale(0).move_to(weighing_matrix.get_entry(row_ind, col_ind))
+        all_coin_set_list = []
+        for pb_ind, (pb, text) in enumerate(zip(pbs, weighing_texts)):
+            text.scale(0.6).next_to(pb, DOWN, buff=1)
+            left_coins, right_coins, idle_coins = VGroup(), VGroup(), VGroup()
+            for coin_ind, coin in enumerate(coins[pb_ind]):
+                entry = weighing_matrix.get_entry(pb_ind, coin_ind).tex_string
+                coin_target = coin.target
+                if entry == "-1":
+                    left_coins.add(coin_target)
+                elif entry == "1":
+                    right_coins.add(coin_target)
+                else:
+                    idle_coins.add(coin_target)
+            pb.put_coins_on_left_pan(left_coins, arrangement=[2, 2], add_updater=True)
+            pb.put_coins_on_right_pan(right_coins, arrangement=[2, 2], add_updater=True)
+            idle_coins.arrange(RIGHT, buff=COIN_BUFF).next_to(pb, DOWN, buff=0.1)
+            for coin_set in (left_coins, right_coins, idle_coins):
+                all_coin_set_list.append(coin_set)
+        for coin_set, text in zip(coins, weighing_texts):
+            self.play(
+                AnimationGroup(*[
+                    MoveToTarget(coin)
+                    for coin in coin_set
+                ], lag_ratio=0.05, run_time=2),
+                FadeIn(text, run_time=1),
+            )
+            self.wait()
+        self.remove(coins)
+        for coin_set in all_coin_set_list:
+            self.add(coin_set)
+        # Example 1: coin 7 is a heavier counterfeit
+        self.play(
+            pbs[0].get_tilt_right_animation("hide"),
+            pbs[1].get_wiggle_animation("hide"),
+            pbs[2].get_tilt_left_animation("hide"),
+            run_time=2,
+        )
+        self.wait()
+        pb_states_texts = VGroup(*[
+            TexText(text, color=YELLOW).scale(0.8).next_to(pb, UP, buff=1)
+            for text, pb in zip(["向右倾斜", "平衡", "向左倾斜"], pbs)
+        ])
+        self.play(FadeIn(pb_states_texts, shift=1.5 * UP))
+        self.wait()
+        pb_states_numbers = VGroup(*[
+            Tex(str(number), color=YELLOW).move_to(pb_state_text)
+            for number, pb_state_text in zip([1, 0, -1], pb_states_texts)
+        ])
+        self.play(FadeTransform(pb_states_texts, pb_states_numbers))
+        self.wait()
+        result_vector = VVector(1, 0, -1)
+        result_vector.set_color(YELLOW)
+        result_vector.next_to(weighing_matrix, DOWN, buff=0.4)
+        self.play(
+            FadeIn(result_vector.get_brackets()[0], shift=6.5 * RIGHT),
+            FadeIn(result_vector.get_brackets()[1], shift=6.5 * LEFT),
+            ReplacementTransform(pb_states_numbers, result_vector.elements)
+        )
+        self.wait()
+        seventh_column = weighing_matrix.get_columns()[6]
+        self.play(
+            result_vector.animate.set_color(BLUE_E).next_to(seventh_column, DOWN, buff=0.4),
+            seventh_column.animate.set_color(BLUE_E),
+        )
+        self.wait()
+        counterfeit_text = TexText("7号是偏重的假币", color=BLUE_E)
+        counterfeit_text.move_to(result_vector)
+        counterfeit_7_coins = VGroup(*[
+            HeavierCoin(7, radius=0.25).move_to(all_coin_set_list[set_ind][coin_ind])
+            for (set_ind, coin_ind) in [(1, 2), (5, 3), (6, 1)]
+        ])
+        coins.save_state()
+        self.play(
+            FadeOut(result_vector, shift=LEFT),
+            FadeIn(counterfeit_text, shift=LEFT),
+            FadeIn(counterfeit_7_coins),
+        )
+        self.wait()
+        self.play(
+            weighing_matrix.animate.set_color(WHITE),
+            FadeOut(counterfeit_text),
+            FadeOut(counterfeit_7_coins),
+        )
+        self.wait()
+        # Example 2: coin 5 is a lighter counterfeit
+        self.play(
+            pbs[0].get_tilt_left_animation("hide"),
+            pbs[1].get_balance_animation("hide"),
+            pbs[2].get_balance_animation("hide"),
+            run_time=2,
+        )
+        result_vector = VVector(-1, 0, 0)
+        result_vector.set_color(YELLOW)
+        result_vector.next_to(weighing_matrix, DOWN, buff=0.4)
+        self.play(FadeIn(result_vector, shift=1.5 * UP))
+        self.wait()
+        fifth_column = weighing_matrix.get_columns()[4]
+        self.play(
+            result_vector.animate.set_color(RED_E).next_to(fifth_column, DOWN, buff=0.4),
+            fifth_column.animate.set_color(RED_E),
+        )
+        self.wait()
+        counterfeit_text = TexText("5号是偏轻的假币", color=RED_E)
+        counterfeit_text.move_to(result_vector)
+        counterfeit_5_coins = VGroup(*[
+            LighterCoin(5, radius=0.25).move_to(all_coin_set_list[set_ind][coin_ind])
+            for (set_ind, coin_ind) in [(1, 0), (5, 1), (8, 1)]
+        ])
+        coins.save_state()
+        self.play(
+            FadeOut(result_vector, shift=LEFT),
+            FadeIn(counterfeit_text, shift=LEFT),
+            FadeIn(counterfeit_5_coins),
+        )
+        self.wait()
+        self.play(
+            weighing_matrix.animate.set_color(WHITE),
+            FadeOut(counterfeit_text),
+            FadeOut(counterfeit_5_coins),
+        )
+        self.wait()
+        # Example 3: No counterfeits
+        self.play(
+            AnimationGroup(*[pb.get_balance_animation("hide") for pb in pbs]),
+            run_time=2,
+        )
+        self.wait()
+        real_coins = VGroup(*[
+            RealCoin(k + 1, radius=0.25).move_to(coin)
+            for coin_set in coins
+            for k, coin in enumerate(coin_set)
+        ])
+        result_vector = VVector(0, 0, 0)
+        result_vector.set_color(GREEN)
+        result_vector.next_to(weighing_matrix, DOWN, buff=0.4)
+        self.play(FadeIn(result_vector, shift=1.5 * UP))
+        self.wait()
+        self.play(FadeIn(real_coins))
+        self.wait()
+        self.play(
+            FadeOut(result_vector), FadeOut(real_coins),
+            AnimationGroup(*[pb.get_balance_animation("show") for pb in pbs]),
+        )
+        self.wait()
+
+
+class FinalRecap(Scene):
+    def construct(self):
+        title = Title("小结", include_underline=False)
+        title.to_edge(UP, buff=0.5)
+        screen_rect = ScreenRectangle(height=6).shift(0.5 * DOWN)
+        self.add(title)
+        self.wait()
+        self.play(ShowCreation(screen_rect))
+        self.wait()
+
+
+class CoreIdeasBehindTheSolutions(Scene):
+    def construct(self):
+        # Intro
+        entropy_text = Text("信息熵", font="STZhongSong", color=YELLOW)
+        entropy_formula = Tex("S = -\\sum_{i}{p_i \\log_{2}{p_i}}")
+        entropy_group = VGroup(entropy_text, entropy_formula)
+        entropy_group.arrange(DOWN, buff=0.5)
+        entropy_group.move_to(LEFT_SIDE / 2)
+        test_matrix_text = Text("校验矩阵", font="STZhongSong", color=YELLOW)
+        test_matrix_formula = Tex("H \\vec{\\mathbf{x}} = \\vec{\\mathbf{s}}")
+        test_matrix_group = VGroup(test_matrix_text, test_matrix_formula)
+        test_matrix_group.arrange(DOWN, buff=0.5)
+        test_matrix_group.move_to(RIGHT_SIDE / 2)
+        for group in (entropy_group, test_matrix_group):
+            self.play(FadeIn(group, shift=UP))
+            self.wait()
+        self.remove(*self.mobjects)
+        # Part 1 overlay
+        close_prob_text = Tex(
+            "p_{\\text{向左倾斜}}", " \\approx ", "p_{\\text{平衡}}", " \\approx ", "p_{\\text{向右倾斜}}",
+        )
+        hard_to_predict_text = TexText("预测结果困难", "，信息量较大")
+        easy_to_predict_text = TexText("预测结果容易", "，信息量较小")
+        for text in (close_prob_text, hard_to_predict_text, easy_to_predict_text):
+            text.scale(1.25).move_to(2 * UP)
+        self.play(FadeIn(close_prob_text, shift=UP))
+        self.wait()
+        self.play(
+            FadeOut(close_prob_text, shift=UP),
+            FadeIn(hard_to_predict_text[0], shift=UP),
+        )
+        self.wait()
+        self.play(FadeIn(hard_to_predict_text[1], shift=UP))
+        self.wait()
+        self.play(FadeTransform(hard_to_predict_text, easy_to_predict_text))
+        self.wait()
+        vague_info_text = TexText("信息量的大小?", color=YELLOW)
+        precise_info_text = TexText("信息熵", color=YELLOW)
+        for text in (vague_info_text, precise_info_text):
+            text.scale(1.25).to_edge(UP)
+        self.play(FadeTransform(easy_to_predict_text, vague_info_text))
+        self.wait()
+        info_entropy_img = ImageMobject("info_entropy_paper.png")
+        info_entropy_img.set_height(6).move_to(LEFT_SIDE / 2).to_edge(DOWN)
+        self.play(FadeIn(info_entropy_img, shift=UP))
+        self.wait()
+        entropy_formula.move_to(RIGHT_SIDE / 3)
+        entropy_formula.generate_target()
+        entropy_formula.scale(0).move_to(info_entropy_img.get_center())
+        self.play(
+            FadeTransform(vague_info_text, precise_info_text),
+            MoveToTarget(entropy_formula),
+        )
+        self.wait()
+        full_entropy_formula = Tex(
+            "S =",
+            "& -", "p_{\\text{向左倾斜}}", " \\log_{2}", "{p_{\\text{向左倾斜}}} \\\\",
+            "& -", "p_{\\text{平衡}}", " \\log_{2}", "{p_{\\text{平衡}}} \\\\",
+            "& -", "p_{\\text{向右倾斜}}", " \\log_{2}", "{p_{\\text{向右倾斜}}}",
+        )
+        full_entropy_formula.move_to(RIGHT_SIDE / 3)
+        full_entropy_formula[2:5:2].set_color(RED)
+        full_entropy_formula[6:9:2].set_color(BLUE)
+        full_entropy_formula[10::2].set_color(GREEN)
+        self.play(FadeTransform(entropy_formula, full_entropy_formula))
+        self.wait()
+        sur_rect = SurroundingRectangle(full_entropy_formula)
+        maximize_entropy_text = TexText("将$S$最大化", color=YELLOW)
+        maximize_formula_text = Tex(
+            "p_{\\text{向左倾斜}}", " \\approx ", "p_{\\text{平衡}}", " \\approx ",
+            "p_{\\text{向右倾斜}}", " \\approx \\dfrac{1}{3}"
+        )
+        maximize_formula_text[0].set_color(RED)
+        maximize_formula_text[2].set_color(BLUE)
+        maximize_formula_text[4].set_color(GREEN)
+        for text in (maximize_entropy_text, maximize_formula_text):
+            text.next_to(sur_rect, DOWN)
+        self.play(ShowCreation(sur_rect))
+        self.wait()
+        self.play(FadeIn(maximize_entropy_text, shift=2 * DOWN))
+        self.wait()
+        self.play(
+            FadeOut(maximize_entropy_text, shift=2 * DOWN),
+            FadeIn(maximize_formula_text, shift=2 * DOWN),
+        )
+        self.wait()
+        self.remove(*self.mobjects)
+        # Part 2 overlay
+        hamming74_title = TexText("(7,\\,4)汉明码", color=YELLOW)
+        hamming74_title.to_edge(UP)
+        hamming74_matrix = WeighingMatrix([
+            [1, 1, 0, 1, 1, 0, 0],
+            [1, 0, 1, 1, 0, 1, 0],
+            [0, 1, 1, 1, 0, 0, 1],
+        ])
+        hamming74_vector = VVector(1, 1, 1, 1, 0, 1, 0)  # It should be (1,0,1,1,0,1,0)
+        hamming74_result = VGroup(Tex("="), VVector(1, 0, 1))
+        hamming74_result.arrange(RIGHT)
+        hamming74_group = VGroup(hamming74_matrix, hamming74_vector, hamming74_result)
+        hamming74_group.arrange(RIGHT)
+        self.add(hamming74_title, hamming74_matrix, hamming74_vector)
+        self.wait()
+        connections = VGroup(*[
+            Line(
+                hamming74_matrix.get_entry(row_ind, col_ind),
+                hamming74_vector.get_row(col_ind),
+                stroke_color=BLUE, stroke_width=0.2,
+            )
+            for row_ind in range(3)
+            for col_ind in range(7)
+        ])
+        self.play(ShowCreation(
+            connections,
+            lag_ratio=0.05, run_time=2,
+        ))
+        self.wait()
+        hamming74_remark = TexText("（在二进制下）", color=GREY_A)
+        hamming74_remark.scale(0.5).next_to(hamming74_result, RIGHT)
+        self.play(
+            FadeIn(hamming74_result, shift=LEFT),
+            FadeOut(connections),
+        )
+        self.play(FadeIn(hamming74_remark))
+        self.wait()
+        second_column = hamming74_matrix.get_columns()[1]
+        second_entry = hamming74_vector.get_row(1)
+        entry_rect = SurroundingRectangle(second_entry, color=RED)
+        self.play(
+            second_column.animate.set_color(YELLOW),
+            second_entry.animate.set_color(RED),
+            hamming74_result[1].elements.animate.set_color(YELLOW),
+            ShowCreation(entry_rect),
+        )
+        self.wait()
+        hamming74_vector.add(entry_rect)
+        hamming74_result.add(hamming74_remark)
+        weighing_title = TexText("硬币称量", color=YELLOW)
+        weighing_title.to_edge(UP)
+        weighing_matrix = WeighingMatrix([
+            [0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1],
+            [0, 1, -1, -1, 0, 0, 0, 1, -1, -1, 1, 1],
+            [1, 0, -1, 1, 0, 1, -1, 0, -1, 1, 0, -1],
+        ])
+        # weighing_vector = VVector(*["m_{"+str(k)+"}" for k in range(1,13)])
+        bias = [0] * 12
+        bias[3] = -1
+        weighing_vector = VVector(*bias)
+        weighing_result = VGroup(Tex("="), VVector(0, 1, -1))
+        weighing_result.arrange(RIGHT)
+        weighing_group = VGroup(weighing_matrix, weighing_vector, weighing_result)
+        weighing_group.arrange(RIGHT)
+        for (fade_out_mob, fade_in_mob) in [
+            (VGroup(hamming74_group, hamming74_title), weighing_matrix),
+            (Mobject(), weighing_vector),
+            (Mobject(), VGroup(weighing_result, weighing_title)),
+        ]:
+            self.play(
+                FadeIn(fade_in_mob, shift=UP),
+                FadeOut(fade_out_mob, shift=UP),
+            )
+            self.wait()
+        fourth_column = weighing_matrix.get_columns()[3]
+        fourth_entry = weighing_vector.get_row(3)
+        entry_rect = SurroundingRectangle(fourth_entry, color=RED)
+        self.play(
+            fourth_column.animate.set_color(YELLOW),
+            fourth_entry.animate.set_color(RED),
+            weighing_result[1].elements.animate.set_color(YELLOW),
+            ShowCreation(entry_rect),
+        )
+        self.wait()
+        self.play(
+            fourth_column.animate.set_color(WHITE),
+            fourth_entry.animate.set_color(WHITE),
+            weighing_result[1].elements.animate.set_color(WHITE),
+            FadeOut(entry_rect),
+        )
+        self.wait()
+        # Relations between counterfeit puzzle and balanced ternary
+        balance_ternary_texts = VGroup(
+            Tex("\\left\\{ -1,\\, 0,\\, 1 \\right\\}"), TexText("平衡三进制"),
+        )
+        balance_ternary_texts.set_color(GREEN)
+        balance_ternary_texts.next_to(weighing_matrix, UP, buff=0.8)
+        self.play(Write(balance_ternary_texts[0]), run_time=1)
+        self.wait()
+        self.play(FadeTransform(balance_ternary_texts[0], balance_ternary_texts[1]))
+        self.wait()
+        balance_ternary_title = balance_ternary_texts[1]
+        self.play(
+            weighing_title.animate.move_to(LEFT_SIDE / 2).to_edge(UP),
+            balance_ternary_title.animate.move_to(RIGHT_SIDE / 2).to_edge(UP),
+            FadeOut(weighing_group, shift=DOWN),
+        )
+        self.wait()
+        weighing_list = BulletedList(
+            "11枚外观相同的硬币",
+            "至多2枚重量不同的假币",
+            "假币的轻重情况未知",
+            "假币相互独立（轻与重可能并存）",
+            "由天平称量结果判断假币的情况",
+            "最多称量5次",
+            "遵循一般运算规则",
+            buff=0.3,
+        )
+        weighing_list.scale(0.7).set_color(YELLOW_A)
+        weighing_list[-1].set_color(GREY_A)
+        temp_text = TexText("错误相互独立（$-1$与$+1$可能并存）\\\\")  # temporary hack
+        balance_ternary_list = BulletedList(
+            "11位全零的平衡三进制信息",
+            "至多有2位出现错误",
+            "错误的情况未知",
+            "错误相互独立（$-1$与$+1$可能并存）",
+            "由校验矩阵的校验结果判断错误的情况",
+            "矩阵最多5行",
+            "遵循三进制运算规则",
+            buff=0.3,
+        )
+        balance_ternary_list.scale(0.7).set_color(GREEN_A)
+        balance_ternary_list[-1].set_color(GREY_A)
+        weighing_list.next_to(LEFT_SIDE, RIGHT, buff=0.6)
+        weighing_list.next_to(weighing_title, DOWN, buff=0.5, coor_mask=[0, 1, 0])
+        balance_ternary_list.next_to(ORIGIN, RIGHT, buff=0.6)
+        balance_ternary_list.next_to(balance_ternary_title, DOWN, buff=0.5, coor_mask=[0, 1, 0])
+        self.play(FadeIn(weighing_list))
+        self.wait()
+        self.play(FadeTransform(weighing_list.deepcopy(), balance_ternary_list))
+        self.wait()
+        ternary_golay_code_text = TexText("三进制完备码 \\\\ ternary Virtakallio–Golay code")
+        ternary_golay_code_text.scale(0.9).set_color(GREEN)
+        ternary_golay_code_text.move_to(RIGHT_SIDE / 2).to_edge(DOWN, buff=1)
+        perfect_weighing_text = TexText("“近乎完美的”称量方案")
+        perfect_weighing_text.scale(0.9).set_color(YELLOW)
+        perfect_weighing_text.move_to(LEFT_SIDE / 2).to_edge(DOWN, buff=1)
+        self.play(FadeIn(ternary_golay_code_text, shift=2 * DOWN))
+        self.wait()
+        self.play(FadeTransform(ternary_golay_code_text.deepcopy(), perfect_weighing_text))
+        self.wait()
+
+
+class ReferenceScene(Scene):
+    def construct(self):
+        refs = BulletedList(
+            "Solution to the counterfeit coin problem and its generalization. arXiv:1005.1391 ",
+            "Optimal non-adaptive solutions for the counterfeit coin problem. arXiv:1502.04896 ",
+            "Weighing algorithms of classification and identification of situations. \\emph{Discrete Math. and Appl.}, 2015, 25(2): 69-81. ",
+            buff=2,
+        )
+        ref_remarks = VGroup(*[
+            TexText(text, alignment="")
+            for text in (
+                "经典的“12枚硬币称量问题”的解答，也有“39枚硬币称量问题”的答案。",
+                "解决了硬币称量问题的常见变体，比如是否知道假币的轻重，是否需要确定假币的轻重，是否有额外的真币作为参考等。",
+                "拓展到“$n$枚硬币中有$t$枚假币”的情况，给出了称量次数$m$的下界。花了大量篇幅讨论$n=11,\\,m=5,\\,t=2$的情况，并提供了两种“近乎完美的”称量方案。",
+            )
+        ])
+        for remark, ref in zip(ref_remarks, refs):
+            remark.scale(0.9)
+            remark.next_to(ref, DOWN, aligned_edge=LEFT)
+            remark.shift(RIGHT)
+            ref.set_color(YELLOW)
+            remark.set_color(BLUE_A)
+        group = VGroup(refs, ref_remarks)
+        group.set_width(FRAME_WIDTH - 2).center()
+        self.add(group)
+        self.wait(5)
+
+
+class ThumbnailPart2(Scene):
+    # Well, only the vector part...
+    def construct(self):
+        row_vec = TexMatrix(
+            np.zeros((1, 12), dtype=np.int),
+            h_buff=0.7
+        )
+        row_vec.scale(1.5)
+        for element in row_vec.get_columns():
+            one = Tex("1", fill_opacity=random.random() * 0.2)
+            neg_one = Tex("-1", fill_opacity=random.random() * 0.2)
+            for mob in (one, neg_one):
+                mob.set_height(element.get_height())
+                mob.move_to(element)
+                self.add(mob)
+        self.add(row_vec)
+        self.wait()
