@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Generator: Adobe Illustrator 21.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1366 768" style="enable-background:new 0 0 1366 768;" xml:space="preserve">
+<g id="stand">
+	
+		<polygon style="fill:#808080;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="
+		150,504.579 150,621 241,621 279.001,585.888 1086,585.888 1123.5,620.538 1215,620.538 1215,504.579 751,504.579 751,147 614,147 
+		614,504.579 	"/>
+</g>
+<g id="beam">
+	
+		<polygon style="fill:#808080;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="
+		335,342.5 335,380.5 682,417.5 1029,380.5 1029,342.5 	"/>
+</g>
+<g id="pans">
+	
+		<polyline style="fill:#808080;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="
+		791,269 791,285 814,308 963.14,308 963.14,415 1098,415 1098,308 1244,308 1267,285 1267,269 791,269 791,269 791,269 791,269 	
+		"/>
+	
+		<polyline style="fill:#808080;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" points="
+		96,268 96,284 119,307 268.14,307 268.14,414 403,414 403,307 549,307 572,284 572,268 96,268 96,268 96,268 96,268 	"/>
+</g>
+<g id="axles">
+	
+		<circle style="fill:#4D4D4D;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" cx="682" cy="380" r="25"/>
+	
+		<circle style="fill:#4D4D4D;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" cx="334.5" cy="364.5" r="12.5"/>
+	
+		<circle style="fill:#4D4D4D;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" cx="1029.5" cy="364.5" r="12.5"/>
+</g>
+<g id="screen">
+	
+		<rect x="626" y="160" style="fill:#333333;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;" width="112" height="134"/>
+</g>
+</svg>
