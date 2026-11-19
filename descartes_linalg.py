@@ -1839,7 +1839,7 @@ class WhatIsDescartesTheoremP1(Scene):
             old_relation, old_relation_remark,
         )
 
-        sangaku_algorithm = ImageMobject("ShinpekiSanpo_1786.png")
+        sangaku_algorithm = ImageMobject("ShinpekiSanpo_1789.png")
         beecroft_proof = ImageMobject("Beecroft_1842.png")
         soddy_poem = ImageMobject("PoemSoddy_1936.png")
         gosset_poem = ImageMobject("PoemGosset_1936.png")
@@ -1855,7 +1855,7 @@ class WhatIsDescartesTheoremP1(Scene):
             for mob, year in zip(
                 [sangaku_algorithm, beecroft_proof, gosset_poem],
                 [
-                    "1786年 \\\\ 神壁算法 \\\\[0.5em] （图源：京都大学理学 \\\\ 研究科数学教室）",
+                    "1789年 \\\\ 神壁算法 \\\\[0.5em] （图源：京都大学理学 \\\\ 研究科数学教室）",
                     "1842年 \\\\ \\emph{Properties of Circles \\\\ in Mutual Contact}",
                     "1936年 \\\\ \\emph{The Kiss Precise}",
                 ]
@@ -1868,6 +1868,11 @@ class WhatIsDescartesTheoremP1(Scene):
         author_extra.scale(0.6)
         author_extra.match_color(rediscovery_remarks[-1])
         author_extra.next_to(rediscovery_remarks[-1], DOWN)
+        year_extra = TexText("1936-1937年")
+        year_ref = rediscovery_remarks[-1][:5]
+        year_extra.match_color(year_ref[0])
+        year_extra.match_height(year_ref)
+        year_extra.move_to(year_ref)
 
         sg_poem.remove(gosset_poem)
         self.play(
@@ -1972,6 +1977,9 @@ class WhatIsDescartesTheoremP1(Scene):
 
         # And Gosset added another verse
         self.play(
+            ReplacementTransform(year_ref[:-1], year_extra[:4]),
+            ReplacementTransform(VectorizedPoint(year_ref[-1].get_left()), year_extra[4:-1]),
+            ReplacementTransform(year_ref[-1], year_extra[-1]),
             FadeIn(gosset_poem),
             FadeIn(author_extra[len("FrederickSoddy"):]),
             FadeIn(right_verses[1]),
@@ -2017,7 +2025,8 @@ class WhatIsDescartesTheoremP1(Scene):
 
         self.play(
             FadeOut(sg_poem),
-            FadeOut(rediscovery_remarks[-1]),
+            FadeOut(year_extra),
+            FadeOut(rediscovery_remarks[-1][5:]),
             MoveToTarget(sg_group),
             run_time=2,
         )
